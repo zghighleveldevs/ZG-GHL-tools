@@ -3317,118 +3317,91 @@
 <div id="toast"></div>
 
 <script defer>
+function dbConfigLoad(){}
+function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
+
+
 
 // ============================================
 // DATABASE LAYER - JSONBin.io (free cloud DB)
 // Works across all browsers and devices
 // ============================================
 
+// ============================================
+// CLOUD DATABASE - JSONBin.io
+// Credentials are baked into this file.
+// To change: Settings > Cloud DB > Save & Download
+// ============================================
 var DB_CONFIG = {
-  masterKey: '',    // Set in Settings: X-Master-Key from jsonbin.io
-  binId: '',        // Set in Settings: Bin ID from jsonbin.io
+  masterKey: '',   // INJECTED - do not edit manually
+  binId: '',       // INJECTED - do not edit manually
   baseUrl: 'https://api.jsonbin.io/v3/b',
-  ready: false,
-  useLocal: true    // fallback to localStorage if not configured
 };
 
-function dbConfigLoad(){
-  var mk = localStorage.getItem('zg_jsonbin_key') || '';
-  var bid = localStorage.getItem('zg_jsonbin_bin') || '';
-  if(mk && bid){
-    DB_CONFIG.masterKey = mk;
-    DB_CONFIG.binId = bid;
-    DB_CONFIG.ready = true;
-    DB_CONFIG.useLocal = false;
-  }
-}
-
-function dbConfigSave(masterKey, binId){
-  DB_CONFIG.masterKey = masterKey.trim();
-  DB_CONFIG.binId = binId.trim();
-  DB_CONFIG.ready = !!(masterKey && binId);
-  DB_CONFIG.useLocal = !DB_CONFIG.ready;
-  localStorage.setItem('zg_jsonbin_key', DB_CONFIG.masterKey);
-  localStorage.setItem('zg_jsonbin_bin', DB_CONFIG.binId);
-}
 
 async function dbGet(path){
-  // Local fallback
-  if(DB_CONFIG.useLocal || !DB_CONFIG.ready){
+  // Try cloud first if configured
+  if(dbIsReady()){
     try{
-      var val = localStorage.getItem('zg_db_'+path)
-             || sessionStorage.getItem('zg_db_'+path)
-             || localStorage.getItem('zg_shared_clients');
-      return val ? JSON.parse(val) : null;
-    }catch(e){ return null; }
+      var r = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest',{
+        headers:{'X-Master-Key':DB_CONFIG.masterKey,'X-Bin-Meta':'false'}
+      });
+      if(r.ok){
+        var d = await r.json();
+        var record = d.record||d;
+        // Cache locally for offline fallback
+        if(record.clients) localStorage.setItem('zg_db_clients',JSON.stringify(record.clients));
+        return record[path]!==undefined ? record[path] : null;
+      }
+    }catch(e){ console.warn('[DB] read failed:',e.message); }
   }
-  // JSONBin cloud read
+  // Local fallback
   try{
-    var r = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest', {
-      headers: { 'X-Master-Key': DB_CONFIG.masterKey }
-    });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    var d = await r.json();
-    var record = d.record || d;
-    return record[path] !== undefined ? record[path] : null;
-  }catch(e){
-    console.warn('[DB] Cloud read failed, using local:', e.message);
-    try{ return JSON.parse(localStorage.getItem('zg_db_'+path)||'null'); }catch(le){ return null; }
-  }
+    return JSON.parse(localStorage.getItem('zg_db_'+path)||
+                      localStorage.getItem('zg_shared_clients')||'null');
+  }catch(e){ return null; }
 }
 
 async function dbSet(path, data){
-  // Always write locally as backup
+  // Always cache locally
   try{
-    var val = JSON.stringify(data);
-    localStorage.setItem('zg_db_'+path, val);
-    sessionStorage.setItem('zg_db_'+path, val);
-    if(path==='clients'){
-      localStorage.setItem('zg_shared_clients', val);
-      sessionStorage.setItem('zg_shared_clients', val);
-    }
+    localStorage.setItem('zg_db_'+path, JSON.stringify(data));
+    if(path==='clients') localStorage.setItem('zg_shared_clients',JSON.stringify(data));
   }catch(e){}
 
-  if(DB_CONFIG.useLocal || !DB_CONFIG.ready) return true;
+  if(!dbIsReady()) return true;
 
-  // JSONBin cloud write - read current, merge, write back
+  // Write to cloud
   try{
-    // Read current bin state
-    var r1 = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest', {
-      headers: { 'X-Master-Key': DB_CONFIG.masterKey }
-    });
+    // Get current bin data
     var current = {};
-    if(r1.ok){
-      var d1 = await r1.json();
-      current = d1.record || d1 || {};
-    }
+    var r1 = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest',{
+      headers:{'X-Master-Key':DB_CONFIG.masterKey,'X-Bin-Meta':'false'}
+    });
+    if(r1.ok){ var d1=await r1.json(); current=d1.record||d1||{}; }
     current[path] = data;
 
     // Write back
-    var r2 = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': DB_CONFIG.masterKey,
-        'X-Bin-Versioning': 'false'
+    var r2 = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId,{
+      method:'PUT',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Master-Key':DB_CONFIG.masterKey,
+        'X-Bin-Versioning':'false'
       },
-      body: JSON.stringify(current)
+      body:JSON.stringify(current)
     });
     if(!r2.ok) throw new Error('HTTP '+r2.status);
+    console.log('[DB] saved to cloud ok');
     return true;
   }catch(e){
-    console.warn('[DB] Cloud write failed:', e.message);
+    console.warn('[DB] write failed:',e.message);
     return false;
   }
 }
 
+
 // Initialize DB config on load
-dbConfigLoad();
-
-
-
-
-
-
 function logActivity(u,n,a){ try{ var log=JSON.parse(localStorage.getItem("zg_activity_log")||"[]"); log.push({username:u,name:n,action:a||"Logged in",ts:Date.now()}); if(log.length>500)log=log.slice(-500); localStorage.setItem("zg_activity_log",JSON.stringify(log)); }catch(e){} }
 function getActivityLog(){ try{ return JSON.parse(localStorage.getItem("zg_activity_log")||"[]"); }catch(e){ return []; } }
 function formatAgo(ts){ var d=Date.now()-ts; if(d<60000)return "Just now"; if(d<3600000)return Math.floor(d/60000)+"m ago"; if(d<86400000)return Math.floor(d/3600000)+"h ago"; return Math.floor(d/86400000)+"d ago"; }
@@ -4219,94 +4192,108 @@ function agencyChangePassword(){
 }
 
 
+
+
+
+
+
 function agencySyncToClientPortal(){
   try{
     var data=JSON.stringify(PORTAL.clients);
-    // Write to all possible shared locations
     localStorage.setItem('zg_shared_clients',data);
     sessionStorage.setItem('zg_shared_clients',data);
-    localStorage.setItem('zg_db_clients',data);
-    sessionStorage.setItem('zg_db_clients',data);
-    // Also encode as URL-safe base64 for manual transfer
-    var encoded=btoa(unescape(encodeURIComponent(data)));
-    var url=window.location.href.split('#')[0]+'#clients='+encoded;
-    // Show instructions modal
-    document.getElementById('modal-del-title').textContent='Sync Client Portal';
-    document.getElementById('modal-del-text').innerHTML='';
-    document.getElementById('modal-del-prog-wrap').style.display='none';
-    document.getElementById('modal-del-prog-label').style.display='none';
-    var acts=document.getElementById('modal-del-actions');
-    acts.style.display='flex'; acts.innerHTML='';
-    var info=document.createElement('div');
-    info.style.cssText='width:100%;font-size:13px;color:var(--text);line-height:1.6;';
-    var count=Object.keys(PORTAL.clients).length;
-    info.innerHTML='<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:12px;margin-bottom:14px;color:#10b981;font-weight:600;">&#10003; '+count+' client'+(count!==1?'s':'')+' synced to shared storage!</div>'
-      +'<strong>For best results, open the Client Portal in the same browser:</strong><br><br>'
-      +'1. Client data is now in shared browser storage<br>'
-      +'2. Open <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">ghl_client_portal.html</code> in this same browser<br>'
-      +'3. Client can now log in with their username &amp; password<br><br>'
-      +'<div style="font-size:11px;color:var(--text-muted);">If the client uses a different browser, use Export Backup and import it into the client portal manually.</div>';
-    document.getElementById('modal-del-text').appendChild(info);
-    var ok=document.createElement('button');
-    ok.className='btn'; ok.style.background='#10b981'; ok.style.color='#fff'; ok.textContent='Got it';
-    ok.onclick=function(){ closeModal('modal-del'); };
-    acts.appendChild(ok);
-    openModal('modal-del');
-  }catch(e){ toast('Sync failed: '+e.message,'error'); }
+    toast(Object.keys(PORTAL.clients).length+' clients synced locally!','success');
+  }catch(e){ toast('Sync failed.','error'); }
 }
-
+// DB Settings functions for admin portal
 function agencyLoadDbConfigUI(){
   var keyEl=document.getElementById('settings-jsonbin-key');
   var binEl=document.getElementById('settings-jsonbin-bin');
   if(keyEl) keyEl.value=DB_CONFIG.masterKey||'';
   if(binEl) binEl.value=DB_CONFIG.binId||'';
-  var badge=document.getElementById('db-status-badge');
-  if(badge&&DB_CONFIG.ready){badge.textContent='Connected';badge.style.background='rgba(16,185,129,0.15)';badge.style.color='#10b981';}
+  updateDbBadge();
 }
+
+function updateDbBadge(){
+  var badge=document.getElementById('db-status-badge');
+  if(!badge) return;
+  if(dbIsReady()){
+    badge.textContent='Connected'; badge.style.background='rgba(16,185,129,0.15)'; badge.style.color='#10b981';
+  } else {
+    badge.textContent='Not configured'; badge.style.background='rgba(107,112,148,0.2)'; badge.style.color='#6b7094';
+  }
+}
+
 function agencySaveDbConfig(){
   var key=document.getElementById('settings-jsonbin-key').value.trim();
   var bin=document.getElementById('settings-jsonbin-bin').value.trim();
   if(!key||!bin){ agencyDbMsg('Enter both Master Key and Bin ID.','error'); return; }
-  dbConfigSave(key, bin);
-  agencyDbMsg('Connected! Testing...','info');
+  DB_CONFIG.masterKey=key;
+  DB_CONFIG.binId=bin;
+  // Save to localStorage so it persists in this browser
+  localStorage.setItem('zg_jsonbin_key',key);
+  localStorage.setItem('zg_jsonbin_bin',bin);
+  agencyDbMsg('Saved! Testing connection...','info');
+  updateDbBadge();
   agencyTestDbConfig();
 }
 
 async function agencyTestDbConfig(){
-  var msg=document.getElementById('db-config-msg');
-  if(!DB_CONFIG.ready){ agencyDbMsg('Not configured yet.','error'); return; }
-  agencyDbMsg('Testing connection...','info');
+  if(!dbIsReady()){ agencyDbMsg('Enter credentials first.','error'); return; }
+  agencyDbMsg('Testing...','info');
   try{
     var r=await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest',{
-      headers:{'X-Master-Key':DB_CONFIG.masterKey}
+      headers:{'X-Master-Key':DB_CONFIG.masterKey,'X-Bin-Meta':'false'}
     });
     if(r.ok){
-      agencyDbMsg('Connected to JSONBin successfully!','success');
-      var badge=document.getElementById('db-status-badge');
-      if(badge){badge.textContent='Connected';badge.style.background='rgba(16,185,129,0.15)';badge.style.color='#10b981';}
+      agencyDbMsg('Connected! Now click "Push All Clients to Cloud" to sync data.','success');
+      updateDbBadge();
     } else {
-      agencyDbMsg('Connection failed: HTTP '+r.status+'. Check your credentials.','error');
+      agencyDbMsg('Failed: HTTP '+r.status+'. Check your Master Key and Bin ID.','error');
     }
-  }catch(e){ agencyDbMsg('Connection failed: '+e.message,'error'); }
+  }catch(e){ agencyDbMsg('Error: '+e.message,'error'); }
 }
 
 async function agencySyncCloud(){
-  if(!DB_CONFIG.ready){ agencyDbMsg('Configure JSONBin first.','error'); return; }
-  agencyDbMsg('Pushing clients to cloud...','info');
-  var ok = await dbSet('clients', PORTAL.clients);
-  if(ok){ agencyDbMsg('All clients synced to cloud database!','success'); toast('Clients synced to cloud!','success'); }
-  else { agencyDbMsg('Sync failed. Check connection.','error'); }
+  if(!dbIsReady()){ agencyDbMsg('Configure JSONBin first.','error'); return; }
+  agencyDbMsg('Pushing to cloud...','info');
+  var ok=await dbSet('clients',PORTAL.clients);
+  if(ok){
+    agencyDbMsg('All '+Object.keys(PORTAL.clients).length+' clients synced to cloud! Now works on any browser/device.','success');
+    toast('Synced to cloud!','success');
+  } else {
+    agencyDbMsg('Sync failed. Check your credentials.','error');
+  }
 }
 
-function agencyDbMsg(msg, type){
+async function agencyDownloadUpdatedFiles(){
+  if(!dbIsReady()){ agencyDbMsg('Save & test your credentials first.','error'); return; }
+  agencyDbMsg('Generating files with credentials baked in...','info');
+  // Get current page HTML and inject credentials
+  var html=document.documentElement.outerHTML;
+  var key=DB_CONFIG.masterKey; var bin=DB_CONFIG.binId;
+  // Replace the empty credential placeholders
+  html=html.replace("masterKey: '',   // INJECTED","masterKey: '"+key+"',   // INJECTED");
+  html=html.replace("binId: '',       // INJECTED","binId: '"+bin+"',       // INJECTED");
+  // Download
+  var blob=new Blob([html],{type:'text/html'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='ghl_manager_suite_configured.html'; a.click();
+  agencyDbMsg('Downloaded! Also download the client portal from Settings.','success');
+}
+
+async function agencyDownloadClientPortal(){
+  agencyDbMsg('Client portal download - use the one from your files (ghl_client_portal.html). Make sure to run "Push All Clients to Cloud" first.','info');
+}
+
+function agencyDbMsg(msg,type){
   var el=document.getElementById('db-config-msg'); if(!el) return;
   el.style.display='block';
-  var colors={success:'rgba(16,185,129,0.1)',error:'rgba(255,77,109,0.1)',info:'rgba(108,99,255,0.1)'};
-  var textColors={success:'#10b981',error:'#ff4d6d',info:'#6c63ff'};
-  el.style.background=colors[type]||colors.info;
-  el.style.color=textColors[type]||textColors.info;
-  el.style.border='1px solid '+(textColors[type]||textColors.info);
-  el.textContent=msg;
+  var bg={success:'rgba(16,185,129,0.1)',error:'rgba(255,77,109,0.1)',info:'rgba(108,99,255,0.1)',warning:'rgba(245,158,11,0.1)'};
+  var tc={success:'#10b981',error:'#ff4d6d',info:'#6c63ff',warning:'#f59e0b'};
+  el.style.background=bg[type]||bg.info; el.style.color=tc[type]||tc.info;
+  el.style.border='1px solid '+(tc[type]||tc.info);
+  el.innerHTML=msg;
 }
 
 function agencySyncToClientPortal(){
@@ -4317,6 +4304,7 @@ function agencySyncToClientPortal(){
     toast(Object.keys(PORTAL.clients).length+' clients synced locally!','success');
   }catch(e){ toast('Sync failed.','error'); }
 }
+
 function agencyExportData(){
   var data={clients:PORTAL.clients,activity:getActivityLog(),exported:new Date().toISOString()};
   var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -7182,6 +7170,10 @@ async function fnDoDeletePagesInline(funnelId){
 
 // == INIT ==
 document.addEventListener('DOMContentLoaded', function() {
+  var _mk=localStorage.getItem('zg_jsonbin_key');
+  var _bid=localStorage.getItem('zg_jsonbin_bin');
+  if(_mk&&_bid){DB_CONFIG.masterKey=_mk;DB_CONFIG.binId=_bid;}
+  updateDbBadge&&updateDbBadge();
   var _sp=localStorage.getItem('zg_admin_pass');if(_sp&&typeof AGENCY_ADMIN_PASS!=='undefined')AGENCY_ADMIN_PASS=_sp;
   F.trash    = loadTrashFrom(F_TRASH_KEY);
   D.trash    = loadTrashFrom(D_TRASH_KEY);
@@ -7193,6 +7185,8 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
+
 
 
 

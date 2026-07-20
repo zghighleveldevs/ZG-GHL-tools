@@ -4870,6 +4870,10 @@
 
 <div id="toast" class="toast"></div>
 <script defer>
+function dbConfigLoad(){}
+function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
+
+
 function logActivity(username, name, action){ /* client portal - no activity log */ }
 
 // == BRAND THEME TOOL - Direct API Apply ==
@@ -4878,109 +4882,81 @@ function logActivity(username, name, action){ /* client portal - no activity log
 // Works across all browsers and devices
 // ============================================
 
+// ============================================
+// CLOUD DATABASE - JSONBin.io
+// Credentials are baked into this file.
+// To change: Settings > Cloud DB > Save & Download
+// ============================================
 var DB_CONFIG = {
-  masterKey: '',    // Set in Settings: X-Master-Key from jsonbin.io
-  binId: '',        // Set in Settings: Bin ID from jsonbin.io
+  masterKey: '',   // INJECTED - do not edit manually
+  binId: '',       // INJECTED - do not edit manually
   baseUrl: 'https://api.jsonbin.io/v3/b',
-  ready: false,
-  useLocal: true    // fallback to localStorage if not configured
 };
 
-function dbConfigLoad(){
-  var mk = localStorage.getItem('zg_jsonbin_key') || '';
-  var bid = localStorage.getItem('zg_jsonbin_bin') || '';
-  if(mk && bid){
-    DB_CONFIG.masterKey = mk;
-    DB_CONFIG.binId = bid;
-    DB_CONFIG.ready = true;
-    DB_CONFIG.useLocal = false;
-  }
-}
-
-function dbConfigSave(masterKey, binId){
-  DB_CONFIG.masterKey = masterKey.trim();
-  DB_CONFIG.binId = binId.trim();
-  DB_CONFIG.ready = !!(masterKey && binId);
-  DB_CONFIG.useLocal = !DB_CONFIG.ready;
-  localStorage.setItem('zg_jsonbin_key', DB_CONFIG.masterKey);
-  localStorage.setItem('zg_jsonbin_bin', DB_CONFIG.binId);
-}
 
 async function dbGet(path){
-  // Local fallback
-  if(DB_CONFIG.useLocal || !DB_CONFIG.ready){
+  // Try cloud first if configured
+  if(dbIsReady()){
     try{
-      var val = localStorage.getItem('zg_db_'+path)
-             || sessionStorage.getItem('zg_db_'+path)
-             || localStorage.getItem('zg_shared_clients');
-      return val ? JSON.parse(val) : null;
-    }catch(e){ return null; }
+      var r = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest',{
+        headers:{'X-Master-Key':DB_CONFIG.masterKey,'X-Bin-Meta':'false'}
+      });
+      if(r.ok){
+        var d = await r.json();
+        var record = d.record||d;
+        // Cache locally for offline fallback
+        if(record.clients) localStorage.setItem('zg_db_clients',JSON.stringify(record.clients));
+        return record[path]!==undefined ? record[path] : null;
+      }
+    }catch(e){ console.warn('[DB] read failed:',e.message); }
   }
-  // JSONBin cloud read
+  // Local fallback
   try{
-    var r = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest', {
-      headers: { 'X-Master-Key': DB_CONFIG.masterKey }
-    });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    var d = await r.json();
-    var record = d.record || d;
-    return record[path] !== undefined ? record[path] : null;
-  }catch(e){
-    console.warn('[DB] Cloud read failed, using local:', e.message);
-    try{ return JSON.parse(localStorage.getItem('zg_db_'+path)||'null'); }catch(le){ return null; }
-  }
+    return JSON.parse(localStorage.getItem('zg_db_'+path)||
+                      localStorage.getItem('zg_shared_clients')||'null');
+  }catch(e){ return null; }
 }
 
 async function dbSet(path, data){
-  // Always write locally as backup
+  // Always cache locally
   try{
-    var val = JSON.stringify(data);
-    localStorage.setItem('zg_db_'+path, val);
-    sessionStorage.setItem('zg_db_'+path, val);
-    if(path==='clients'){
-      localStorage.setItem('zg_shared_clients', val);
-      sessionStorage.setItem('zg_shared_clients', val);
-    }
+    localStorage.setItem('zg_db_'+path, JSON.stringify(data));
+    if(path==='clients') localStorage.setItem('zg_shared_clients',JSON.stringify(data));
   }catch(e){}
 
-  if(DB_CONFIG.useLocal || !DB_CONFIG.ready) return true;
+  if(!dbIsReady()) return true;
 
-  // JSONBin cloud write - read current, merge, write back
+  // Write to cloud
   try{
-    // Read current bin state
-    var r1 = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest', {
-      headers: { 'X-Master-Key': DB_CONFIG.masterKey }
-    });
+    // Get current bin data
     var current = {};
-    if(r1.ok){
-      var d1 = await r1.json();
-      current = d1.record || d1 || {};
-    }
+    var r1 = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest',{
+      headers:{'X-Master-Key':DB_CONFIG.masterKey,'X-Bin-Meta':'false'}
+    });
+    if(r1.ok){ var d1=await r1.json(); current=d1.record||d1||{}; }
     current[path] = data;
 
     // Write back
-    var r2 = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': DB_CONFIG.masterKey,
-        'X-Bin-Versioning': 'false'
+    var r2 = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId,{
+      method:'PUT',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Master-Key':DB_CONFIG.masterKey,
+        'X-Bin-Versioning':'false'
       },
-      body: JSON.stringify(current)
+      body:JSON.stringify(current)
     });
     if(!r2.ok) throw new Error('HTTP '+r2.status);
+    console.log('[DB] saved to cloud ok');
     return true;
   }catch(e){
-    console.warn('[DB] Cloud write failed:', e.message);
+    console.warn('[DB] write failed:',e.message);
     return false;
   }
 }
 
+
 // Initialize DB config on load
-dbConfigLoad();
-
-
-
 function logActivity(u,n,a){}
 
 
@@ -8335,6 +8311,8 @@ V.trash   = loadTrashFrom(V_TRASH_KEY);
 VF.trash  = loadTrashFrom(VF_TRASH_KEY);
 CAL.trash = loadTrashFrom(CAL_TRASH_KEY);
 FN.trash = loadTrashFrom(FN_TRASH_KEY);
+
+
 </script>
 </body>
 </html>
