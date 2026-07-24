@@ -3106,6 +3106,7 @@
   </div><script defer>
 
 
+
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 
@@ -3683,36 +3684,62 @@ function connectAndEnter(){
 function renderConnectTools(){
   var user=PORTAL.currentUser; if(!user) return;
   var grid=document.getElementById('connect-tools-grid'); if(!grid) return;
-  var tools=user.tools||[];
-  var cats=[
-    {label:'Field & Value Manager',color:'#6c63ff',icon:'&#9654;',key:'fv',tools:['fields','folders','values','vfolders']},
-    {label:'Calendar Manager',color:'#3b82f6',icon:'&#128197;',key:'calendar',tools:['calendars','appointments']},
-    {label:'Payment Manager',color:'#f59e0b',icon:'&#128203;',key:'payments',tools:['invoices','documents','orders','products']},
-    {label:'Marketing Manager',color:'#a855f7',icon:'&#128140;',key:'marketing',tools:['email-templ','tags','workflows']},
-    {label:'Brand & Design',color:'#ec4899',icon:'&#127912;',key:'brand',tools:['brand']},
-  ];
+  var assigned=user.tools||[];
+
+  // Map each tool to its open function
+  var toolMeta={
+    'fields':    {label:'Custom Fields',     icon:'&#9654;',   color:'#6c63ff', open:'openTool(\x27fields\x27)'},
+    'folders':   {label:'Field Folders',     icon:'&#128193;', color:'#6c63ff', open:'openTool(\x27folders\x27)'},
+    'values':    {label:'Custom Values',     icon:'&#128190;', color:'#10b981', open:'openTool(\x27values\x27)'},
+    'vfolders':  {label:'Value Folders',     icon:'&#128194;', color:'#10b981', open:'openTool(\x27vfolders\x27)'},
+    'calendars': {label:'Calendars',         icon:'&#128197;', color:'#3b82f6', open:'openTool(\x27calendars\x27)'},
+    'appointments':{label:'Appointments',   icon:'&#128198;', color:'#3b82f6', open:'openTool(\x27appointments\x27)'},
+    'invoices':  {label:'Invoices',          icon:'&#128203;', color:'#f59e0b', open:'openTool(\x27invoices\x27)'},
+    'documents': {label:'Documents',         icon:'&#128196;', color:'#f59e0b', open:'openTool(\x27documents\x27)'},
+    'orders':    {label:'Orders',            icon:'&#128230;', color:'#f59e0b', open:'openTool(\x27orders\x27)'},
+    'products':  {label:'Products',          icon:'&#128717;', color:'#f59e0b', open:'openTool(\x27products\x27)'},
+    'email-templ':{label:'Email Templates', icon:'&#128140;', color:'#a855f7', open:'openTool(\x27email-templ\x27)'},
+    'tags':      {label:'Tags',              icon:'&#127991;', color:'#a855f7', open:'openTool(\x27tags\x27)'},
+    'workflows': {label:'Workflows',         icon:'&#9889;',   color:'#a855f7', open:'openTool(\x27workflows\x27)'},
+    'brand':     {label:'Brand & Design',    icon:'&#127912;', color:'#ec4899', open:'openBrandCategoryTool()'},
+  };
+
+  var order=['fields','folders','values','vfolders','calendars','appointments','invoices','documents','orders','products','email-templ','tags','workflows','brand'];
   var html='';
-  cats.forEach(function(cat){
-    var ct=cat.tools.filter(function(t){ return tools.indexOf(t)>-1; });
-    if(!ct.length) return;
-    var rgb=hexToRgb(cat.color);
-    var toolLabels={'fields':'Custom Fields','folders':'Field Folders','values':'Custom Values','vfolders':'Value Folders','calendars':'Calendars','appointments':'Appointments','invoices':'Invoices','documents':'Documents','orders':'Orders','products':'Products','email-templ':'Email Templates','tags':'Tags','workflows':'Workflows','brand':'Brand & Design'};
-    var chips=ct.map(function(t){
-      return '<span class="cat-tool-chip" style="color:'+cat.color+';background:rgba('+rgb+',0.08);border-color:rgba('+rgb+',0.2);">'+(toolLabels[t]||t)+'</span>';
-    }).join('');
-    html+='<div class="cat-card" style="border:1px solid rgba('+rgb+',0.3);background:var(--surface);cursor:pointer;" onclick="openCategory(\x27'+cat.key+'\x27)">'
-      +'<div class="cat-card-top">'
-      +'<div class="cat-card-icon" style="background:rgba('+rgb+',0.1);border:1px solid rgba('+rgb+',0.3);">'+cat.icon+'</div>'
-      +'<span class="cat-badge badge-live" style="color:'+cat.color+';border-color:rgba('+rgb+',0.3);background:rgba('+rgb+',0.07);">&#9679; Live</span>'
-      +'</div>'
-      +'<div class="cat-card-title" style="color:#fff;">'+cat.label+'</div>'
-      +'<div class="cat-tools-preview">'+chips+'</div>'
-      +'<div class="cat-card-footer">'
-      +'<span class="cat-card-count">'+ct.length+' tool'+(ct.length!==1?'s':'')+' available</span>'
-      +'<span class="cat-card-cta" style="color:'+cat.color+';">Open Manager &#8594;</span>'
-      +'</div></div>';
+
+  order.forEach(function(tid){
+    var m=toolMeta[tid]; if(!m) return;
+    var unlocked=assigned.indexOf(tid)>-1;
+    var rgb=hexToRgb(m.color);
+    if(unlocked){
+      html+='<div class="cat-card tool-card-unlocked" style="border:1px solid rgba('+rgb+',0.4);background:var(--surface);cursor:pointer;position:relative;" onclick="'+m.open+'">'
+        +'<div class="cat-card-top">'
+        +'<div class="cat-card-icon" style="background:rgba('+rgb+',0.12);border:1px solid rgba('+rgb+',0.3);font-size:22px;">'+m.icon+'</div>'
+        +'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;color:'+m.color+';background:rgba('+rgb+',0.1);border:1px solid rgba('+rgb+',0.3);">&#9679; LIVE</span>'
+        +'</div>'
+        +'<div class="cat-card-title" style="color:#fff;font-size:14px;margin:10px 0 6px;">'+m.label+'</div>'
+        +'<div class="cat-card-footer">'
+        +'<span style="font-size:11px;color:var(--text-muted);">Click to open</span>'
+        +'<span style="color:'+m.color+';font-size:16px;">&#8594;</span>'
+        +'</div></div>';
+    } else {
+      html+='<div class="cat-card tool-card-locked" style="border:1px solid rgba(107,112,148,0.2);background:rgba(15,15,25,0.6);cursor:not-allowed;position:relative;opacity:0.55;" title="Not assigned">'
+        +'<div class="cat-card-top">'
+        +'<div class="cat-card-icon" style="background:rgba(107,112,148,0.08);border:1px solid rgba(107,112,148,0.2);font-size:22px;filter:grayscale(1);">'+m.icon+'</div>'
+        +'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;color:#6b7094;background:rgba(107,112,148,0.1);border:1px solid rgba(107,112,148,0.2);">&#128274; LOCKED</span>'
+        +'</div>'
+        +'<div class="cat-card-title" style="color:#4a4a6a;font-size:14px;margin:10px 0 6px;">'+m.label+'</div>'
+        +'<div class="cat-card-footer">'
+        +'<span style="font-size:11px;color:#4a4a6a;">Contact your agency</span>'
+        +'</div></div>';
+    }
   });
-  grid.innerHTML=html||'<div class="state-box"><div class="icon">&#128274;</div><p>No tools assigned.</p></div>';
+
+  grid.innerHTML=html||'<div class="state-box"><div class="icon">&#128274;</div><p>No tools available.</p></div>';
+
+  // Update grid layout to show 14 cards nicely
+  grid.style.gridTemplateColumns='repeat(auto-fill,minmax(160px,1fr))';
+  grid.style.gap='12px';
 }
 
 function hexToRgb(hex){
@@ -4313,6 +4340,11 @@ function openCategory(cat){
   else if(cat==='funnels'){ showScreen('screen-funnels-category'); renderAllSwitchers(); }
 }
 function openTool(tool){
+  // In client mode, check tool is assigned
+  if(PORTAL&&PORTAL.currentUser&&PORTAL.currentUser.role==='client'){
+    var assigned=PORTAL.currentUser.tools||[];
+    if(assigned.indexOf(tool)===-1){ toast('This tool is not assigned to your account.','warning'); return; }
+  }
   if(agencyAccounts.length && selectedAccount.id){
     var acct=agencyAccounts.find(function(a){ return a.id===selectedAccount.id; });
     if(acct&&acct.locationKey){
@@ -4552,7 +4584,7 @@ function fClearSearch(){ document.getElementById('f-search').value=''; fOnSearch
 function fSwitchTab(tab){ document.getElementById('f-view-main').style.display=tab==='main'?'block':'none'; document.getElementById('f-view-trash').style.display=tab==='trash'?'block':'none'; document.getElementById('f-tab-main').className='tab'+(tab==='main'?' active-f':''); document.getElementById('f-tab-trash').className='tab'+(tab==='trash'?' active-f':''); if(tab==='trash'){ purge(F,F_TRASH_KEY); fRenderTrash(); } }
 function fRender(){
   var c=document.getElementById('f-table');
-  if(!F.filtered.length){ c.innerHTML=F.searchQ?'<div class="state-box"><div class="icon">?</div><p>No match</p></div>':'<div class="state-box"><div class="icon">?</div><p>No fields.</p></div>'; fUpdateUI(); return; }
+  if(!F.filtered.length){ c.innerHTML=F.searchQ?'<div class="state-box"><div class="icon">&#128269;</div><p>No match</p></div>':'<div class="state-box"><div class="icon">?</div><p>No fields.</p></div>'; fUpdateUI(); return; }
   var h='<div class="table-head" style="grid-template-columns:40px 1fr 120px 140px"><div></div><div>Name</div><div>Type</div><div>ID</div></div>';
   F.filtered.forEach(function(f){ var s=F.selIds.has(f.id); h+='<div class="table-row'+(s?' sel-row-f':'')+'" data-id="'+esc(f.id)+'" style="grid-template-columns:40px 1fr 120px 140px" onclick="fRowClick(this)"><div class="col-check"><input type="checkbox"'+(s?' checked':'')+' onchange="fRowClick(this.closest(\'.table-row\'))" onclick="event.stopPropagation()"/></div><div><div class="item-name">'+hi(f.name||'Unnamed',F.searchQ)+'</div><div class="item-id">'+esc(f.fieldKey||'')+'</div></div><div><span class="type-pill">'+esc(f.dataType||'text')+'</span></div><div class="item-id">'+esc(f.id)+'</div></div>'; });
   c.innerHTML=h; fUpdateUI();
@@ -4715,14 +4747,26 @@ function vClearSearch(){ document.getElementById('v-search').value=''; vOnSearch
 function vSwitchTab(tab){ document.getElementById('v-view-main').style.display=tab==='main'?'block':'none'; document.getElementById('v-view-trash').style.display=tab==='trash'?'block':'none'; document.getElementById('v-tab-main').className='tab'+(tab==='main'?' active-v':''); document.getElementById('v-tab-trash').className='tab'+(tab==='trash'?' active-v':''); if(tab==='trash'){ purge(V,V_TRASH_KEY); vRenderTrash(); } }
 function vRender(){
   var c=document.getElementById('v-table');
-  if(!V.filtered.length){ c.innerHTML=V.searchQ?'<div class="state-box"><div class="icon">?</div><p>No match</p></div>':'<div class="state-box"><div class="icon">?</div><p>No values.</p></div>'; vUpdateUI(); return; }
+  if(!V.filtered.length){ c.innerHTML=V.searchQ?'<div class="state-box"><div class="icon">?</div><p>No match</p></div>':'<div class="state-box"><div class="icon">&#128190;</div><p>No values found.</p></div>'; vUpdateUI(); return; }
   var h='<div class="table-head" style="grid-template-columns:40px 1fr 1fr 130px"><div></div><div>Name</div><div>Value</div><div>Key</div></div>';
   V.filtered.forEach(function(v){ var s=V.selIds.has(v.id); h+='<div class="table-row'+(s?' sel-row-v':'')+'" data-id="'+esc(v.id)+'" style="grid-template-columns:40px 1fr 1fr 130px" onclick="vRowClick(this)"><div class="col-check"><input type="checkbox"'+(s?' checked':'')+' onchange="vRowClick(this.closest(\'.table-row\'))" onclick="event.stopPropagation()"/></div><div><div class="item-name">'+hi(v.name||'Unnamed',V.searchQ,'mark-v')+'</div></div><div class="item-id">'+esc(v.value||'')+'</div><div class="item-id">'+esc(v.fieldKey||v.id||'')+'</div></div>'; });
   c.innerHTML=h; vUpdateUI();
 }
 function vRowClick(row){ var id=row.getAttribute('data-id'); if(!id) return; V.selIds.has(id)?V.selIds.delete(id):V.selIds.add(id); vRender(); }
 function vToggleAll(v){ V.selIds.clear(); if(v) V.filtered.forEach(function(x){ V.selIds.add(x.id); }); vRender(); }
-function vUpdateUI(){ var n=V.selIds.size,i=document.getElementById('v-sel-info'),b=document.getElementById('v-del-btn'),c=document.getElementById('v-select-all'); i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-v':''); b.disabled=!n; var vis=V.filtered.filter(function(x){ return V.selIds.has(x.id); }).length; c.checked=V.filtered.length>0&&vis===V.filtered.length; c.indeterminate=vis>0&&vis<V.filtered.length; }
+function vUpdateUI(){
+  var n=V.selIds.size;
+  var i=document.getElementById('v-sel-info');
+  var b=document.getElementById('v-del-btn');
+  var c=document.getElementById('v-select-all');
+  if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-v':''); }
+  if(b) b.disabled=!n;
+  if(c){
+    var vis=V.filtered.filter(function(x){ return V.selIds.has(x.id); }).length;
+    c.checked=V.filtered.length>0&&vis===V.filtered.length;
+    c.indeterminate=vis>0&&vis<V.filtered.length;
+  }
+}
 function vRenderTrash(){
   var c=document.getElementById('v-trash-table');
   if(!V.trash.length){ c.innerHTML='<div class="state-box"><div class="icon">??</div><p>Trash empty.</p></div>'; vUpdateTrashUI(); return; }
@@ -7079,6 +7123,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
 
 
 </script>
