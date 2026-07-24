@@ -3110,6 +3110,10 @@
 
 
 
+
+
+
+
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 
@@ -4636,10 +4640,9 @@ async function loadFields(){
     var d=await r.json(); F.all=d.customFields||d.fields||[];
     F.filtered=[...F.all]; F.selIds.clear(); F.searchQ='';
     document.getElementById('f-search').value=''; document.getElementById('f-clear-search').style.display='none';
-    fRender();
     document.getElementById('f-toolbar').style.display='flex'; document.getElementById('f-stats').style.display='flex'; document.getElementById('f-tabs').style.display='flex';
     document.getElementById('f-search-count').textContent=F.all.length+' total'; fUpdateStats();
-    toast(F.all.length+' fields loaded.','success');
+    fRender(); toast(F.all.length+' fields loaded.','success');
     if(document.getElementById('fields-nav-badge')) document.getElementById('fields-nav-badge').textContent=F.all.length;
   }catch(err){ tbl.innerHTML='<div class="state-box"><div class="icon">?</div><p>'+esc(err.message)+'</p><div class="error-box">Key: '+esc(k.slice(0,18))+'...<br>Loc: '+esc(l)+'</div></div>'; toast('Failed: '+err.message,'error'); }
 }
@@ -4656,7 +4659,19 @@ function fRender(){
 }
 function fRowClick(row){ var id=row.getAttribute('data-id'); if(!id) return; F.selIds.has(id)?F.selIds.delete(id):F.selIds.add(id); fRender(); }
 function fToggleAll(v){ F.selIds.clear(); if(v) F.filtered.forEach(function(f){ F.selIds.add(f.id); }); fRender(); }
-function fUpdateUI(){ var n=F.selIds.size,i=document.getElementById('f-sel-info'),b=document.getElementById('f-del-btn'),c=document.getElementById('f-select-all'); i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-f':''); b.disabled=!n; var v=F.filtered.filter(function(f){ return F.selIds.has(f.id); }).length; c.checked=F.filtered.length>0&&v===F.filtered.length; c.indeterminate=v>0&&v<F.filtered.length; }
+function fUpdateUI(){
+  var n=F.selIds.size;
+  var i=document.getElementById('f-sel-info');
+  var b=document.getElementById('f-del-btn');
+  var c=document.getElementById('f-select-all');
+  if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-f':''); }
+  if(b) b.disabled=!n;
+  if(c){
+    var v=F.filtered.filter(function(x){ return F.selIds.has(x.id); }).length;
+    c.checked=F.filtered.length>0&&v===F.filtered.length;
+    c.indeterminate=v>0&&v<F.filtered.length;
+  }
+}
 function fRenderTrash(){
   var c=document.getElementById('f-trash-table');
   if(!F.trash.length){ c.innerHTML='<div class="state-box"><div class="icon">??</div><p>Trash empty.</p></div>'; fUpdateTrashUI(); return; }
@@ -4743,7 +4758,7 @@ async function loadFolders(){
     await Promise.all(Object.keys(map).map(async function(pid){ try{ var r2=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customFields/'+pid,{headers:gH()}); if(r2.ok){ var dd=await r2.json(); var obj=dd.customField||dd; if(obj&&obj.name) map[pid].name=obj.name; } }catch(e){} }));
     D.all=Object.values(map); D.filtered=[...D.all]; D.selIds.clear(); D.searchQ='';
     document.getElementById('d-search').value=''; document.getElementById('d-clear-search').style.display='none';
-    dRender(); document.getElementById('d-toolbar').style.display='flex'; document.getElementById('d-stats').style.display='flex'; document.getElementById('d-tabs').style.display='flex'; dUpdateStats(); toast(D.all.length+' folders loaded.','success');
+    document.getElementById('d-toolbar').style.display='flex'; document.getElementById('d-stats').style.display='flex'; document.getElementById('d-tabs').style.display='flex'; dUpdateStats(); dRender(); toast(D.all.length+' folders loaded.','success');
   }catch(err){ tbl.innerHTML='<div class="state-box"><div class="icon">?</div><p>'+esc(err.message)+'</p></div>'; }
 }
 function dUpdateStats(){ document.getElementById('d-stat-total').textContent=D.all.length; document.getElementById('d-stat-showing').textContent=D.filtered.length; document.getElementById('d-stat-trash').textContent=D.trash.length; document.getElementById('d-stat-recovered').textContent=D.recovered; document.getElementById('d-trash-count').textContent=D.trash.length?'('+D.trash.length+')':''; }
@@ -4759,16 +4774,19 @@ function dRender(){
 }
 function dRowClick(row){ var id=row.getAttribute('data-id'); if(!id) return; D.selIds.has(id)?D.selIds.delete(id):D.selIds.add(id); dRender(); }
 function dToggleAll(v){ D.selIds.clear(); if(v) D.filtered.forEach(function(f){ D.selIds.add(f.id); }); dRender(); }
-function dUpdateUI(){ var n=D.selIds.size,i=document.getElementById('d-sel-info'),b=document.getElementById('d-del-btn'),c=document.getElementById('d-select-all'); i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-d':''); b.disabled=!n; var v=D.filtered.filter(function(f){ return D.selIds.has(f.id); }).length; c.checked=D.filtered.length>0&&v===D.filtered.length; c.indeterminate=v>0&&v<D.filtered.length; }
-function dRenderTrash(){
-  var c=document.getElementById('d-trash-table');
-  if(!D.trash.length){ c.innerHTML='<div class="state-box"><div class="icon">??</div><p>Trash empty.</p></div>'; dUpdateTrashUI(); return; }
-  var h='<div class="table-head" style="grid-template-columns:40px 36px 1fr 150px 110px"><div></div><div></div><div>Folder</div><div>Deleted</div><div>Expires</div></div>';
-  var arr=[...D.trash].reverse();
-  arr.forEach(function(it,ri){ var idx=D.trash.length-1-ri,left=daysLeft(it.deletedAt),pct=(left/EXPIRY)*100,col=left<2?'var(--danger)':left<5?'var(--warning)':'var(--success)',lbl=left<1?'<1d':Math.ceil(left)+'d',s=D.trashSelIds.has(idx); h+='<div class="table-row'+(s?' sel-row-g':'')+'" data-idx="'+idx+'" style="grid-template-columns:40px 36px 1fr 150px 110px" onclick="dTrashRowClick(this)"><div class="col-check"><input type="checkbox"'+(s?' checked':'')+' onchange="dTrashRowClick(this.closest(\'.table-row\'))" onclick="event.stopPropagation()"/></div><div style="font-size:18px;text-align:center">?</div><div><div class="item-name">'+esc(it.folder.name)+'</div><div class="item-id">Had '+it.folder.fieldCount+' fields</div></div><div class="deleted-at">'+fmtDate(it.deletedAt)+'</div><div><div class="expires-label'+(left<2?' expires-soon':'')+'">'+lbl+'</div><div class="expiry-bar-wrap"><div class="expiry-bar" style="width:'+pct+'%;background:'+col+'"></div></div></div></div>'; });
-  c.innerHTML=h; dUpdateTrashUI();
-}
-function dTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; D.trashSelIds.has(idx)?D.trashSelIds.delete(idx):D.trashSelIds.add(idx); dRenderTrash(); }
+function dUpdateUI(){
+  var n=D.selIds.size;
+  var i=document.getElementById('d-sel-info');
+  var b=document.getElementById('d-del-btn');
+  var c=document.getElementById('d-select-all');
+  if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-d':''); }
+  if(b) b.disabled=!n;
+  if(c){
+    var v=D.filtered.filter(function(x){ return D.selIds.has(x.id); }).length;
+    c.checked=D.filtered.length>0&&v===D.filtered.length;
+    c.indeterminate=v>0&&v<D.filtered.length;
+  }
+}function dTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; D.trashSelIds.has(idx)?D.trashSelIds.delete(idx):D.trashSelIds.add(idx); dRenderTrash(); }
 function dToggleTrashAll(v){ D.trashSelIds.clear(); if(v) D.trash.forEach(function(_,i){ D.trashSelIds.add(i); }); dRenderTrash(); }
 function dUpdateTrashUI(){ var n=D.trashSelIds.size,i=document.getElementById('d-trash-sel-info'),b=document.getElementById('d-recover-btn'),c=document.getElementById('d-trash-select-all'); i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); b.disabled=!n; c.checked=D.trash.length>0&&n===D.trash.length; c.indeterminate=n>0&&n<D.trash.length; }
 function dOpenDeleteModal(){ var n=D.selIds.size,tot=[...D.selIds].reduce(function(a,id){ var f=D.all.find(function(x){ return x.id===id; }); return a+(f?f.fieldCount:0); },0); document.getElementById('modal-del-text').textContent='Delete '+n+' folder'+(n>1?'s':'')+'?'+(tot?' Also deletes '+tot+' fields.':'')+' Saved to trash.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=dDoDelete; openModal('modal-del'); }
@@ -4803,7 +4821,7 @@ async function loadValues(){
     var d=await r.json(); V.all=d.customValues||d.values||d.data||[];
     V.filtered=[...V.all]; V.selIds.clear(); V.searchQ='';
     document.getElementById('v-search').value=''; document.getElementById('v-clear-search').style.display='none';
-    vRender(); document.getElementById('v-toolbar').style.display='flex'; document.getElementById('v-stats').style.display='flex'; document.getElementById('v-tabs').style.display='flex'; vUpdateStats(); toast(V.all.length+' values loaded.','success');
+    document.getElementById('v-toolbar').style.display='flex'; document.getElementById('v-stats').style.display='flex'; document.getElementById('v-tabs').style.display='flex'; vUpdateStats(); vRender(); toast(V.all.length+' values loaded.','success');
   }catch(err){ tbl.innerHTML='<div class="state-box"><div class="icon">?</div><p>'+esc(err.message)+'</p></div>'; }
 }
 function vUpdateStats(){ document.getElementById('v-stat-total').textContent=V.all.length; document.getElementById('v-stat-showing').textContent=V.filtered.length; document.getElementById('v-stat-trash').textContent=V.trash.length; document.getElementById('v-stat-recovered').textContent=V.recovered; document.getElementById('v-trash-count').textContent=V.trash.length?'('+V.trash.length+')':''; }
@@ -4877,7 +4895,7 @@ async function loadVFolders(){
     await Promise.all(Object.keys(map).map(async function(pid){ try{ var r2=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues/'+pid,{headers:gH()}); if(r2.ok){ var dd=await r2.json(); var obj=dd.customValue||dd; if(obj&&obj.name) map[pid].name=obj.name; } }catch(e){} }));
     VF.all=Object.values(map); VF.filtered=[...VF.all]; VF.selIds.clear(); VF.searchQ='';
     document.getElementById('vf-search').value=''; document.getElementById('vf-clear-search').style.display='none';
-    vfRender(); document.getElementById('vf-toolbar').style.display='flex'; document.getElementById('vf-stats').style.display='flex'; document.getElementById('vf-tabs').style.display='flex'; vfUpdateStats(); toast(VF.all.length+' value folders loaded.','success');
+    document.getElementById('vf-toolbar').style.display='flex'; document.getElementById('vf-stats').style.display='flex'; document.getElementById('vf-tabs').style.display='flex'; vfUpdateStats(); vfRender(); toast(VF.all.length+' value folders loaded.','success');
   }catch(err){ tbl.innerHTML='<div class="state-box"><div class="icon">?</div><p>'+esc(err.message)+'</p></div>'; }
 }
 function vfUpdateStats(){ document.getElementById('vf-stat-total').textContent=VF.all.length; document.getElementById('vf-stat-showing').textContent=VF.filtered.length; document.getElementById('vf-stat-trash').textContent=VF.trash.length; document.getElementById('vf-stat-recovered').textContent=VF.recovered; document.getElementById('vf-trash-count').textContent=VF.trash.length?'('+VF.trash.length+')':''; }
@@ -4893,16 +4911,19 @@ function vfRender(){
 }
 function vfRowClick(row){ var id=row.getAttribute('data-id'); if(!id) return; VF.selIds.has(id)?VF.selIds.delete(id):VF.selIds.add(id); vfRender(); }
 function vfToggleAll(v){ VF.selIds.clear(); if(v) VF.filtered.forEach(function(f){ VF.selIds.add(f.id); }); vfRender(); }
-function vfUpdateUI(){ var n=VF.selIds.size,i=document.getElementById('vf-sel-info'),b=document.getElementById('vf-del-btn'),c=document.getElementById('vf-select-all'); i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-vf':''); b.disabled=!n; var v=VF.filtered.filter(function(f){ return VF.selIds.has(f.id); }).length; c.checked=VF.filtered.length>0&&v===VF.filtered.length; c.indeterminate=v>0&&v<VF.filtered.length; }
-function vfRenderTrash(){
-  var c=document.getElementById('vf-trash-table');
-  if(!VF.trash.length){ c.innerHTML='<div class="state-box"><div class="icon">??</div><p>Trash empty.</p></div>'; vfUpdateTrashUI(); return; }
-  var h='<div class="table-head" style="grid-template-columns:40px 36px 1fr 150px 110px"><div></div><div></div><div>Folder</div><div>Deleted</div><div>Expires</div></div>';
-  var arr=[...VF.trash].reverse();
-  arr.forEach(function(it,ri){ var idx=VF.trash.length-1-ri,left=daysLeft(it.deletedAt),pct=(left/EXPIRY)*100,col=left<2?'var(--danger)':left<5?'var(--warning)':'var(--success)',lbl=left<1?'<1d':Math.ceil(left)+'d',s=VF.trashSelIds.has(idx); h+='<div class="table-row'+(s?' sel-row-g':'')+'" data-idx="'+idx+'" style="grid-template-columns:40px 36px 1fr 150px 110px" onclick="vfTrashRowClick(this)"><div class="col-check"><input type="checkbox"'+(s?' checked':'')+' onchange="vfTrashRowClick(this.closest(\'.table-row\'))" onclick="event.stopPropagation()"/></div><div style="font-size:18px;text-align:center">??</div><div><div class="item-name">'+esc(it.folder.name)+'</div><div class="item-id">Had '+it.folder.valueCount+' values</div></div><div class="deleted-at">'+fmtDate(it.deletedAt)+'</div><div><div class="expires-label'+(left<2?' expires-soon':'')+'">'+lbl+'</div><div class="expiry-bar-wrap"><div class="expiry-bar" style="width:'+pct+'%;background:'+col+'"></div></div></div></div>'; });
-  c.innerHTML=h; vfUpdateTrashUI();
-}
-function vfTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; VF.trashSelIds.has(idx)?VF.trashSelIds.delete(idx):VF.trashSelIds.add(idx); vfRenderTrash(); }
+function vfUpdateUI(){
+  var n=VF.selIds.size;
+  var i=document.getElementById('vf-sel-info');
+  var b=document.getElementById('vf-del-btn');
+  var c=document.getElementById('vf-select-all');
+  if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-vf':''); }
+  if(b) b.disabled=!n;
+  if(c){
+    var v=VF.filtered.filter(function(x){ return VF.selIds.has(x.id); }).length;
+    c.checked=VF.filtered.length>0&&v===VF.filtered.length;
+    c.indeterminate=v>0&&v<VF.filtered.length;
+  }
+}function vfTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; VF.trashSelIds.has(idx)?VF.trashSelIds.delete(idx):VF.trashSelIds.add(idx); vfRenderTrash(); }
 function vfToggleTrashAll(v){ VF.trashSelIds.clear(); if(v) VF.trash.forEach(function(_,i){ VF.trashSelIds.add(i); }); vfRenderTrash(); }
 function vfUpdateTrashUI(){ var n=VF.trashSelIds.size,i=document.getElementById('vf-trash-sel-info'),b=document.getElementById('vf-recover-btn'),c=document.getElementById('vf-trash-select-all'); i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); b.disabled=!n; c.checked=VF.trash.length>0&&n===VF.trash.length; c.indeterminate=n>0&&n<VF.trash.length; }
 function vfOpenDeleteModal(){ var n=VF.selIds.size,tot=[...VF.selIds].reduce(function(a,id){ var f=VF.all.find(function(x){ return x.id===id; }); return a+(f?f.valueCount:0); },0); document.getElementById('modal-del-text').textContent='Delete '+n+' folder'+(n>1?'s':'')+'?'+(tot?' Also deletes '+tot+' values.':'')+' Saved to trash.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=vfDoDelete; openModal('modal-del'); }
@@ -4959,16 +4980,19 @@ function calRender(){
 }
 function calRowClick(row){ var id=row.getAttribute('data-id'); if(!id) return; CAL.selIds.has(id)?CAL.selIds.delete(id):CAL.selIds.add(id); calRender(); }
 function calSelAll(v){ CAL.selIds.clear(); if(v) CAL.filtered.forEach(function(c){ CAL.selIds.add(c.id); }); calRender(); }
-function calUpdateUI(){ var n=CAL.selIds.size,i=document.getElementById('cal-sel-info'),b=document.getElementById('cal-del-btn'),c=document.getElementById('cal-select-all'); i.textContent=n?n+' selected':'0 selected'; if(n){i.style.color='#06b6d4';i.style.borderColor='rgba(6,182,212,0.4)';i.style.background='rgba(6,182,212,0.08)';}else{i.style.color='';i.style.borderColor='';i.style.background='';} b.disabled=!n; var v=CAL.filtered.filter(function(c){ return CAL.selIds.has(c.id); }).length; c.checked=CAL.filtered.length>0&&v===CAL.filtered.length; c.indeterminate=v>0&&v<CAL.filtered.length; }
-function calRenderTrash(){
-  var c=document.getElementById('cal-trash-table');
-  if(!CAL.trash.length){ c.innerHTML='<div class="state-box"><div class="icon">??</div><p>Trash empty.</p></div>'; calUpdateTrashUI(); return; }
-  var h='<div class="table-head" style="grid-template-columns:40px 36px 1fr 130px 150px 110px"><div></div><div></div><div>Calendar</div><div>Type</div><div>Deleted</div><div>Expires</div></div>';
-  var arr=[...CAL.trash].reverse();
-  arr.forEach(function(it,ri){ var idx=CAL.trash.length-1-ri,left=daysLeft(it.deletedAt),pct=(left/EXPIRY)*100,col=left<2?'var(--danger)':left<5?'var(--warning)':'var(--success)',lbl=left<1?'<1d':Math.ceil(left)+'d',s=CAL.trashSelIds.has(idx),tl=CAL_TYPE_LABELS[it.calendar.calendarType]||it.calendar.calendarType||'Unknown'; h+='<div class="table-row'+(s?' sel-row-g':'')+'" data-idx="'+idx+'" style="grid-template-columns:40px 36px 1fr 130px 150px 110px" onclick="calTrashRowClick(this)"><div class="col-check"><input type="checkbox"'+(s?' checked':'')+' onchange="calTrashRowClick(this.closest(\'.table-row\'))" onclick="event.stopPropagation()"/></div><div style="font-size:19px;text-align:center">?</div><div><div class="item-name">'+esc(it.calendar.name||'Unnamed')+'</div><div class="item-id">'+esc(it.calendar.id)+'</div></div><div><span class="type-pill">'+esc(tl)+'</span></div><div class="deleted-at">'+fmtDate(it.deletedAt)+'</div><div><div class="expires-label'+(left<2?' expires-soon':'')+'">'+lbl+'</div><div class="expiry-bar-wrap"><div class="expiry-bar" style="width:'+pct+'%;background:'+col+'"></div></div></div></div>'; });
-  c.innerHTML=h; calUpdateTrashUI();
-}
-function calTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; CAL.trashSelIds.has(idx)?CAL.trashSelIds.delete(idx):CAL.trashSelIds.add(idx); calRenderTrash(); }
+function calUpdateUI(){
+  var n=CAL.selIds.size;
+  var i=document.getElementById('cal-sel-info');
+  var b=document.getElementById('cal-del-btn');
+  var c=document.getElementById('cal-select-all');
+  if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-cal':''); }
+  if(b) b.disabled=!n;
+  if(c){
+    var v=CAL.filtered.filter(function(x){ return CAL.selIds.has(x.id); }).length;
+    c.checked=CAL.filtered.length>0&&v===CAL.filtered.length;
+    c.indeterminate=v>0&&v<CAL.filtered.length;
+  }
+}function calTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; CAL.trashSelIds.has(idx)?CAL.trashSelIds.delete(idx):CAL.trashSelIds.add(idx); calRenderTrash(); }
 function calTrashSelAll(v){ CAL.trashSelIds.clear(); if(v) CAL.trash.forEach(function(_,i){ CAL.trashSelIds.add(i); }); calRenderTrash(); }
 function calUpdateTrashUI(){ var n=CAL.trashSelIds.size,i=document.getElementById('cal-trash-sel-info'),b=document.getElementById('cal-recover-btn'),c=document.getElementById('cal-trash-select-all'); i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); b.disabled=!n; c.checked=CAL.trash.length>0&&n===CAL.trash.length; c.indeterminate=n>0&&n<CAL.trash.length; }
 function calOpenDel(){ var n=CAL.selIds.size; document.getElementById('modal-del-text').textContent='Delete '+n+' calendar'+(n>1?'s':'')+'? Saved to trash for '+EXPIRY+' days.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=calDoDelete; openModal('modal-del'); }
@@ -7188,6 +7212,10 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
+
+
+
 
 
 
