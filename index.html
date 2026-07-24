@@ -2842,7 +2842,12 @@
       <div class="stat-card s-danger"><div class="sv" id="wf-s-inactive">0</div><div class="sl">Inactive</div></div>
     </div>
     <div class="toolbar" id="wf-toolbar" style="display:none;">
-      <div class="toolbar-left"></div>
+      <div class="toolbar-left">
+        <div id="wf-bulk-bar" style="display:none;align-items:center;gap:8px;">
+          <span id="wf-bulk-count" style="font-size:13px;font-weight:600;color:var(--text-muted);"></span>
+          <button class="btn btn-ghost" style="padding:5px 12px;font-size:12px;" onclick="wfToggleAll(false);wfRender();">Deselect All</button>
+        </div>
+      </div>
       <div class="toolbar-right">
         <div class="search-wrap">
           <span class="search-icon">&#128269;</span>
@@ -3099,15 +3104,7 @@
   <p id="modal-rec-text"></p>
   <div class="progress-bar-wrap" id="modal-rec-prog-wrap" style="display:none;"><div class="progress-bar" id="modal-rec-prog-bar" style="background:var(--success);"></div></div>
   <p class="progress-label" id="modal-rec-prog-label" style="display:none;"></p>
-  <div class="modal-actions" id="modal-rec-actions">
-    <button class="btn btn-ghost" onclick="closeModal('modal-rec')">Cancel</button>
-    <button class="btn btn-success" id="modal-rec-confirm">↩️ Recover</button>
-  </div>
-</div></div>
-
-<div id="toast"></div>
-<input type="hidden" id="globalApiKey" value=""/>
-<input type="hidden" id="globalLocationId" value=""/>
+  <div class="modal-actions
 <script defer>
 
 
@@ -3632,7 +3629,7 @@ async function clientLoadSubAccounts(){
   var html='';
   locs.forEach(function(loc){
     var id=loc.id||loc._id||''; var name=loc.name||loc.businessName||id;
-    var ini=name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'??';
+    var ini=name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'--';
     var col=colors[Math.abs(id.split('').reduce(function(a,c){return a+c.charCodeAt(0);},0))%colors.length];
     html+='<div class="client-acc-card" data-lid="'+esc(id)+'" data-lname="'+esc(name)+'" onclick="clientSelectAccount(this)">'
       +'<div style="width:38px;height:38px;border-radius:50%;background:'+col+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;">'+esc(ini)+'</div>'
@@ -3646,7 +3643,7 @@ function clientSelectAccount(el){
   var locId=el.getAttribute('data-lid'); var locName=el.getAttribute('data-lname');
   if(!locId) return;
   PORTAL._pendingLocId=locId; PORTAL._pendingLocName=locName;
-  var ini=locName.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'??';
+  var ini=locName.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'--';
   if(document.getElementById('connect-acc-name')) document.getElementById('connect-acc-name').textContent=locName;
   if(document.getElementById('connect-nav-name')) document.getElementById('connect-nav-name').textContent=locName;
   if(document.getElementById('connect-acc-id')) document.getElementById('connect-acc-id').textContent=locId;
@@ -3798,7 +3795,7 @@ function renderClientsTable(q, toolFilter){
     +'</tr></thead><tbody>';
   filtered.forEach(function(entry){
     var username=entry[0],cl=entry[1];
-    var ini=(cl.name||username).split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?';
+    var ini=(cl.name||username).split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'--';
     var tc=(cl.tools||[]).length;
     var ul=log.filter(function(e){return e.username===username;});
     var last=ul.length?Math.max.apply(null,ul.map(function(e){return e.ts;})):0;
@@ -3854,7 +3851,7 @@ function renderOverview(){
       var h='';
       log.forEach(function(e){
         h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;margin-bottom:2px;background:var(--surface2);">'
-          +'<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6c63ff,#a855f7);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;">'+esc((e.name||e.username||'?')[0].toUpperCase())+'</div>'
+          +'<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6c63ff,#a855f7);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;">'+esc((e.name||e.username||'--')[0].toUpperCase())+'</div>'
           +'<div style="flex:1;"><div style="font-size:12px;font-weight:600;color:var(--text);">'+esc(e.name||e.username)+'</div><div style="font-size:11px;color:var(--text-muted);">'+esc(e.action||'Logged in')+'</div></div>'
           +'<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;">'+formatAgo(e.ts)+'</div></div>';
       });
@@ -4228,7 +4225,27 @@ function goHome(){
     showScreen('screen-agency-portal');
   } else { showScreen('screen-login'); }
 }
-function goCategory(){ showScreen('screen-category'); renderAllSwitchers(); }
+function goCategory(){
+  if(PORTAL&&PORTAL.currentUser&&PORTAL.currentUser.role==='client'){
+    showScreen('screen-client-connect');
+    var sec=document.getElementById('connect-tools-section');
+    if(sec) sec.style.display='block';
+    return;
+  }
+  // For mkt tools (email, tags, workflows) go back to mkt-category
+  var cur=document.querySelector('.screen.active');
+  var curId=cur?cur.id:'';
+  if(['screen-email-templ','screen-tags','screen-workflows'].indexOf(curId)>-1){
+    showScreen('screen-mkt-category'); renderAllSwitchers(); return;
+  }
+  if(['screen-calendars','screen-appointments'].indexOf(curId)>-1){
+    showScreen('screen-cal-category'); renderAllSwitchers(); return;
+  }
+  if(['screen-invoices','screen-documents','screen-orders','screen-products'].indexOf(curId)>-1){
+    showScreen('screen-pay-category'); renderAllSwitchers(); return;
+  }
+  showScreen('screen-category'); renderAllSwitchers();
+}
 
 // == CONNECTION ==
 function setConnMode(mode){
@@ -4375,7 +4392,7 @@ async function loadAgencyAccounts(){
   }
   agencyKey=key;
   document.getElementById('globalApiKey').value=key;
-  agencyAccounts=locs.map(function(l){ return {id:l.id||l._id, name:l.name||l.businessName||l.id, initials:(l.name||l.id||'??').slice(0,2).toUpperCase(), locationKey:''}; });
+  agencyAccounts=locs.map(function(l){ return {id:l.id||l._id, name:l.name||l.businessName||l.id, initials:(l.name||l.id||'--').slice(0,2).toUpperCase(), locationKey:''}; });
   renderAgencyGrid(agencyAccounts);
   document.getElementById('agency-acct-count').textContent=agencyAccounts.length+' accounts ? click one to select';
   toast(agencyAccounts.length+' sub-accounts loaded.','success');
@@ -6329,23 +6346,53 @@ function wfUpdateStats(){
 function wfFmtDate(ds){ if(!ds) return '\u2014'; var d=new Date(ds); return isNaN(d.getTime())?esc(String(ds)):d.toLocaleDateString(); }
 function wfRender(){
   var c=document.getElementById('wf-table');
-  if(!WF.filtered.length){ c.innerHTML='<div class="state-box"><div class="icon">?</div><p>'+(WF.all.length?'No workflows match.':'No workflows found.')+'</p></div>'; return; }
-  var cols='grid-template-columns:1fr 120px 140px 130px';
-  var head='<div class="table-head" style="'+cols+'"><div>Workflow Name</div><div>Status</div><div>Updated</div><div>Created</div></div>';
+  if(!WF.filtered.length){ c.innerHTML='<div class="state-box"><div class="icon">&#9889;</div><p>'+(WF.all.length?'No workflows match.':'No workflows found.')+'</p></div>'; return; }
+  var cols='grid-template-columns:36px 1fr 120px 140px 130px';
+  var allIds=WF.filtered.map(function(w){return w._id||w.id||'';});
+  var allChecked=allIds.length>0&&allIds.every(function(id){return WF.selIds&&WF.selIds.has(id);});
+  var head='<div class="table-head" style="'+cols+';">'
+    +'<div><input type="checkbox" '+(allChecked?'checked':'')+'  onchange="wfToggleAll(this.checked)" style="accent-color:#a855f7;cursor:pointer;width:15px;height:15px;"/></div>'
+    +'<div>Workflow Name</div><div>Status</div><div>Updated</div><div>Created</div></div>';
   var rows='';
+  if(!WF.selIds) WF.selIds=new Set();
   WF.filtered.forEach(function(w){
+    var id=w._id||w.id||'';
     var name=esc(w.name||'Unnamed');
     var st=(w.status||w.workflowStatus||(w.isActive?'active':'inactive')||'').toLowerCase();
     var stCls={active:'pay-paid',inactive:'pay-draft',draft:'mkt-draft',published:'pay-paid'}[st]||'pay-draft';
     var stPill='<span class="pay-status-pill '+stCls+'">'+esc(st)+'</span>';
-    rows+='<div class="table-row" style="'+cols+';cursor:default;">'
-      +'<div><div class="item-name">? '+name+'</div><div class="item-id">'+esc(w._id||w.id||'')+'</div></div>'
+    var checked=WF.selIds.has(id)?'checked':'';
+    rows+='<div class="table-row" style="'+cols+';cursor:default;" data-wf-id="'+esc(id)+'">'
+      +'<div><input type="checkbox" '+checked+' data-wid="'+esc(id)+'" onchange="wfToggleSel(this)" style="accent-color:#a855f7;cursor:pointer;width:15px;height:15px;"/></div>'
+      +'<div><div class="item-name">&#9889; '+name+'</div><div class="item-id">'+esc(id)+'</div></div>'
       +'<div>'+stPill+'</div>'
       +'<div class="item-id">'+wfFmtDate(w.updatedAt||w.dateUpdated)+'</div>'
       +'<div class="item-id">'+wfFmtDate(w.createdAt||w.dateAdded)+'</div>'
       +'</div>';
   });
   c.innerHTML=head+rows;
+  wfUpdateBulkBar();
+}
+
+function wfToggleSel(cb){
+  if(!WF.selIds) WF.selIds=new Set();
+  var id=cb.getAttribute('data-wid');
+  if(cb.checked) WF.selIds.add(id); else WF.selIds.delete(id);
+  wfUpdateBulkBar(); wfRender();
+}
+
+function wfToggleAll(checked){
+  if(!WF.selIds) WF.selIds=new Set();
+  WF.filtered.forEach(function(w){ var id=w._id||w.id||''; if(checked) WF.selIds.add(id); else WF.selIds.delete(id); });
+  wfRender();
+}
+
+function wfUpdateBulkBar(){
+  var bar=document.getElementById('wf-bulk-bar');
+  var cnt=document.getElementById('wf-bulk-count');
+  if(!WF.selIds) WF.selIds=new Set();
+  if(bar){ bar.style.display=WF.selIds.size>0?'flex':'none'; }
+  if(cnt){ cnt.textContent=WF.selIds.size+' selected'; }
 }
 
 // == EMAIL TEMPLATES ==
@@ -7019,16 +7066,6 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
-
-
-
-
-
-
-
-
-
-
 
 
 </script>
