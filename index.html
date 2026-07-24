@@ -3105,6 +3105,7 @@
   </div>
   </div><script defer>
 
+
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 
@@ -3590,10 +3591,17 @@ function agencyConfirmLogout(){
 }
 function portalLogout(){
   PORTAL.currentUser=null;
-  localStorage.removeItem('zg_session'); sessionStorage.removeItem('zg_session');localStorage.removeItem('zg_session');
+  PORTAL._connectedApiKey='';
+  PORTAL._connectedLocId='';
+  localStorage.removeItem('zg_session');
+  sessionStorage.removeItem('zg_session');
+  var gak=document.getElementById('globalApiKey'); if(gak) gak.value='';
+  var glid=document.getElementById('globalLocationId'); if(glid) glid.value='';
   var u=document.getElementById('login-username'); if(u) u.value='';
   var p=document.getElementById('login-password'); if(p) p.value='';
-  showScreen('screen-login'); renderAllSwitchers();
+  var err=document.getElementById('login-error'); if(err) err.style.display='none';
+  var btn=document.getElementById('login-btn'); if(btn){btn.textContent='Sign In';btn.disabled=false;}
+  showScreen('screen-login');
 }
 
 // Client helpers
@@ -3685,15 +3693,24 @@ function renderConnectTools(){
   ];
   var html='';
   cats.forEach(function(cat){
-    var ct=cat.tools.filter(function(t){ return tools.indexOf(t)>-1||(cat.key==='brand'&&tools.indexOf('brand')>-1); });
-    if(!ct.length&&cat.key!=='brand') return;
-    if(cat.key==='brand'&&tools.indexOf('brand')===-1) return;
+    var ct=cat.tools.filter(function(t){ return tools.indexOf(t)>-1; });
+    if(!ct.length) return;
     var rgb=hexToRgb(cat.color);
-    html+='<div class="cat-card" style="border:1px solid rgba('+rgb+',0.3);background:var(--surface);cursor:pointer;" onclick="openCategory(\x27'+cat.key+'\x27)">';
-      +'<div class="cat-card-top"><div class="cat-card-icon" style="background:rgba('+rgb+',0.1);border:1px solid rgba('+rgb+',0.3);">'+cat.icon+'</div>'
-      +'<span class="cat-badge badge-live" style="color:'+cat.color+';border-color:rgba('+rgb+',0.3);background:rgba('+rgb+',0.07);">&#9679; Live</span></div>'
+    var toolLabels={'fields':'Custom Fields','folders':'Field Folders','values':'Custom Values','vfolders':'Value Folders','calendars':'Calendars','appointments':'Appointments','invoices':'Invoices','documents':'Documents','orders':'Orders','products':'Products','email-templ':'Email Templates','tags':'Tags','workflows':'Workflows','brand':'Brand & Design'};
+    var chips=ct.map(function(t){
+      return '<span class="cat-tool-chip" style="color:'+cat.color+';background:rgba('+rgb+',0.08);border-color:rgba('+rgb+',0.2);">'+(toolLabels[t]||t)+'</span>';
+    }).join('');
+    html+='<div class="cat-card" style="border:1px solid rgba('+rgb+',0.3);background:var(--surface);cursor:pointer;" onclick="openCategory(\x27'+cat.key+'\x27)">'
+      +'<div class="cat-card-top">'
+      +'<div class="cat-card-icon" style="background:rgba('+rgb+',0.1);border:1px solid rgba('+rgb+',0.3);">'+cat.icon+'</div>'
+      +'<span class="cat-badge badge-live" style="color:'+cat.color+';border-color:rgba('+rgb+',0.3);background:rgba('+rgb+',0.07);">&#9679; Live</span>'
+      +'</div>'
       +'<div class="cat-card-title" style="color:#fff;">'+cat.label+'</div>'
-      +'<div class="cat-card-footer"><span class="cat-card-count">Available</span><span class="cat-card-cta" style="color:'+cat.color+';">Open &#8594;</span></div></div>';
+      +'<div class="cat-tools-preview">'+chips+'</div>'
+      +'<div class="cat-card-footer">'
+      +'<span class="cat-card-count">'+ct.length+' tool'+(ct.length!==1?'s':'')+' available</span>'
+      +'<span class="cat-card-cta" style="color:'+cat.color+';">Open Manager &#8594;</span>'
+      +'</div></div>';
   });
   grid.innerHTML=html||'<div class="state-box"><div class="icon">&#128274;</div><p>No tools assigned.</p></div>';
 }
@@ -7062,6 +7079,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
 
 </script>
 </body>
