@@ -3107,6 +3107,7 @@
 
 
 
+
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 
@@ -3677,8 +3678,31 @@ function connectAndEnter(){
   var connOk=document.getElementById('connect-ok'); if(connOk) connOk.style.display='flex';
   var btn=document.getElementById('connect-btn'); if(btn){ btn.textContent='Connected'; btn.style.background='#10b981'; }
   var sec=document.getElementById('connect-tools-section'); if(sec) sec.style.display='block';
-  renderConnectTools(); toast('Connected to '+locName,'success');
-  setTimeout(function(){ var ts=document.getElementById('connect-tools-section'); if(ts) ts.scrollIntoView({behavior:'smooth',block:'start'}); },300);
+  refreshClientToolsAndRender(locName);
+}
+
+
+async function refreshClientToolsAndRender(locName){
+  // Always fetch latest tool assignment from JSONBin before showing tools
+  if(PORTAL.currentUser && PORTAL.currentUser.role==='client'){
+    try{
+      var latest = await dbGet('clients');
+      if(latest && latest[PORTAL.currentUser.username]){
+        var fresh = latest[PORTAL.currentUser.username];
+        PORTAL.currentUser.tools = fresh.tools || [];
+        // Update stored session with fresh tools
+        var s = JSON.stringify(PORTAL.currentUser);
+        localStorage.setItem('zg_session', s);
+        sessionStorage.setItem('zg_session', s);
+      }
+    }catch(e){ console.warn('[tools] refresh failed:', e.message); }
+  }
+  renderConnectTools();
+  if(locName) toast('Connected to '+locName,'success');
+  setTimeout(function(){
+    var ts=document.getElementById('connect-tools-section');
+    if(ts) ts.scrollIntoView({behavior:'smooth',block:'start'});
+  },300);
 }
 
 function renderConnectTools(){
@@ -4260,6 +4284,8 @@ function goHome(){
       showScreen('screen-client-connect');
       var sec=document.getElementById('connect-tools-section');
       if(sec) sec.style.display='block';
+      // Refresh tools every time client goes back to home
+      refreshClientToolsAndRender(null);
     } else { showScreen('screen-client-home'); }
   } else if(PORTAL&&PORTAL.currentUser&&PORTAL.currentUser.role==='admin'){
     showScreen('screen-agency-portal');
@@ -7123,6 +7149,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
 
 
 
