@@ -3108,6 +3108,8 @@
 
 
 
+
+
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 
@@ -4380,10 +4382,47 @@ function openTool(tool){
   }
   var chk=isConnReady();
   if(!chk.ok){ toast(chk.msg,'warning'); return; }
-  if(tool==='fields')  { showScreen('screen-fields');  loadFields(); }
-  else if(tool==='folders') { showScreen('screen-folders'); loadFolders(); }
-  else if(tool==='values')  { showScreen('screen-values');  loadValues(); }
-  else if(tool==='vfolders'){ showScreen('screen-vfolders');loadVFolders(); }
+  var screenMap = {
+    'fields':       'screen-fields',
+    'folders':      'screen-folders',
+    'values':       'screen-values',
+    'vfolders':     'screen-vfolders',
+    'calendars':    'screen-calendars',
+    'appointments': 'screen-appointments',
+    'invoices':     'screen-invoices',
+    'documents':    'screen-documents',
+    'orders':       'screen-orders',
+    'products':     'screen-products',
+    'email-templ':  'screen-email-templ',
+    'tags':         'screen-tags',
+    'workflows':    'screen-workflows',
+  };
+  var loadMap = {
+    'fields':       loadFields,
+    'folders':      loadFolders,
+    'values':       loadValues,
+    'vfolders':     loadVFolders,
+    'calendars':    loadCalendars,
+    'appointments': loadAppointments,
+    'invoices':     loadInvoices,
+    'documents':    loadDocuments,
+    'orders':       loadOrders,
+    'products':     loadProducts,
+    'email-templ':  loadEmailTempl,
+    'tags':         loadTags,
+    'workflows':    loadWorkflows,
+  };
+  if(screenMap[tool]){
+    showScreen(screenMap[tool]);
+    renderAllSwitchers();
+    // Show ready state - user clicks Load Data to fetch
+    var tbl = document.getElementById(tool.replace('-','-')+'-table') ||
+              document.getElementById(tool+'-table') ||
+              document.getElementById('v-table') ||
+              document.getElementById('f-table');
+    // Just show screen, don't auto-load (avoids silent failures)
+    // Each screen has its own Load Data button
+  }
 }
 function openCalTool(){
   if(agencyAccounts.length && selectedAccount.id){
@@ -7149,6 +7188,8 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
+
 
 
 
