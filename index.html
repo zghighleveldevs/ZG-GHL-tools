@@ -1457,6 +1457,7 @@
     </div>
   </div>
 </div>
+
 <div id="screen-category" class="screen tool-screen">
   <nav class="topnav">
     <button class="back-btn" onclick="goHome()"><span class="back-btn-arrow">←</span> Home</button>
@@ -3094,16 +3095,21 @@
 </div></div>
 
 <div class="modal-overlay" id="modal-rec"><div class="modal">
-  <h2 class="c-success">&#8617; Recover Items</h2>
+  <h2 class="c-success">↩️ Recover Items</h2>
   <p id="modal-rec-text"></p>
   <div class="progress-bar-wrap" id="modal-rec-prog-wrap" style="display:none;"><div class="progress-bar" id="modal-rec-prog-bar" style="background:var(--success);"></div></div>
   <p class="progress-label" id="modal-rec-prog-label" style="display:none;"></p>
   <div class="modal-actions" id="modal-rec-actions">
     <button class="btn btn-ghost" onclick="closeModal('modal-rec')">Cancel</button>
-    <button class="btn btn-success" id="modal-rec-confirm">&#8617; Recover</button>
+    <button class="btn btn-success" id="modal-rec-confirm">↩️ Recover</button>
   </div>
 </div></div>
 
+<div id="toast"></div>
+<input type="hidden" id="globalApiKey" value=""/>
+<input type="hidden" id="globalLocationId" value=""/>
+<script defer>
+
 
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
@@ -3126,8 +3132,21 @@ var DB_CONFIG = {
   baseUrl: 'https://api.jsonbin.io/v3/b',
 };
 
+// Always load saved credentials on startup
+(function(){
+  var mk=localStorage.getItem('zg_jsonbin_key')||'';
+  var bid=localStorage.getItem('zg_jsonbin_bin')||'';
+  if(mk&&bid){ DB_CONFIG.masterKey=mk; DB_CONFIG.binId=bid; }
+})();
+
 function dbIsReady(){
   return !!(DB_CONFIG.masterKey && DB_CONFIG.binId);
+}
+
+function updateDbBadge(){
+  var b=document.getElementById('db-status-badge'); if(!b) return;
+  if(dbIsReady()){ b.textContent='Connected'; b.style.background='rgba(16,185,129,0.15)'; b.style.color='#10b981'; }
+  else { b.textContent='Not configured'; b.style.background='rgba(107,112,148,0.2)'; b.style.color='#6b7094'; }
 }
 
 
@@ -3647,8 +3666,10 @@ function connectAndEnter(){
   if(!apiKeyVal){ if(errEl){ errEl.textContent='Enter your API key.'; errEl.style.display='block'; } return; }
   var locId=PORTAL._pendingLocId; var locName=PORTAL._pendingLocName;
   if(!locId){ showScreen('screen-client-home'); return; }
-  document.getElementById('globalApiKey').value=apiKeyVal;
-  document.getElementById('globalLocationId').value=locId;
+  var _gak=document.getElementById('globalApiKey');
+  var _glid=document.getElementById('globalLocationId');
+  if(_gak) _gak.value=apiKeyVal; PORTAL._connectedApiKey=apiKeyVal;
+  if(_glid) _glid.value=locId; PORTAL._connectedLocId=locId;
   if(errEl) errEl.style.display='none';
   var connOk=document.getElementById('connect-ok'); if(connOk) connOk.style.display='flex';
   var btn=document.getElementById('connect-btn'); if(btn){ btn.textContent='Connected'; btn.style.background='#10b981'; }
@@ -3923,19 +3944,10 @@ function formatAgo(ts){
 function agencyOpenAddClient(){ agencyOpenClientModal(null); }
 function agencyEditClient(u){ agencyOpenClientModal(u); }
 
-
 function clientFormToggleAll(checked){
-  document.querySelectorAll('#client-form-tools input[type="checkbox"]').forEach(function(cb){
-    cb.checked = checked;
-  });
+  document.querySelectorAll('#client-form-tools input[type="checkbox"]').forEach(function(cb){cb.checked=checked;});
 }
 
-function clientFormUpdateSelectAll(){
-  var all = document.querySelectorAll('#client-form-tools input[type="checkbox"]');
-  var checked = document.querySelectorAll('#client-form-tools input[type="checkbox"]:checked');
-  var sa = document.getElementById('client-form-select-all');
-  if(sa) sa.checked = all.length > 0 && checked.length === all.length;
-}
 function agencyOpenClientModal(editUsername){
   var isEdit=!!editUsername; var cl=isEdit?PORTAL.clients[editUsername]:{};
   var toolBoxes=ALL_TOOLS.map(function(t){
@@ -3953,896 +3965,6 @@ function agencyOpenClientModal(editUsername){
   document.getElementById('client-form-tools').innerHTML=toolBoxes;
   document.getElementById('client-form-edit-user').value=isEdit?editUsername:'';
   document.getElementById('client-form-error').style.display='none';
-  var _sa=document.getElementById('client-form-select-all');if(_sa)_sa.checked=false;
-  openModal('modal-client-form');
-}
-
-async function agencySaveClient(){
-  var name=document.getElementById('client-form-name').value.trim();
-  var username=document.getElementById('client-form-username').value.trim().toLowerCase();
-  var password=document.getElementById('client-form-password').value.trim();
-  var agencyKey=document.getElementById('client-form-apikey').value.trim();
-  var editUser=document.getElementById('client-form-edit-user').value.trim();
-  var isEdit=!!editUser;
-  var errEl=document.getElementById('client-form-error');
-  if(!name||!username||!password){errEl.textContent='Name, username and password are required.';errEl.style.display='block';return;}
-  if(!isEdit&&PORTAL.clients[username]){errEl.textContent='Username already exists.';errEl.style.display='block';return;}
-  var checkboxes=document.querySelectorAll('#client-form-tools input[type="checkbox"]:checked');
-  var tools=[]; checkboxes.forEach(function(cb){tools.push(cb.value);});
-  var clientData={name:name,password:password,tools:tools,agencyKey:agencyKey,createdAt:isEdit?(PORTAL.clients[editUser].createdAt||Date.now()):Date.now()};
-  PORTAL.clients[username]=clientData;
-  await dbSet('clients',PORTAL.clients);
-  closeModal('modal-client-form');
-  renderClientsTable('',''); updateAgencyStats();
-  toast((isEdit?'Client updated':'Client created')+': '+name,'success');
-}
-
-async function agencyDeleteClient(username){
-  if(!confirm('Delete client "'+username+'"? This cannot be undone.')) return;
-  delete PORTAL.clients[username];
-  await dbSet('clients',PORTAL.clients);
-  renderClientsTable('',''); updateAgencyStats();
-  toast('Client deleted.','info');
-}
-
-function agencyChangePassword(){
-  var cur=document.getElementById('settings-cur-pass').value;
-  var nw=document.getElementById('settings-new-pass').value;
-  var adminPass=localStorage.getItem('zg_admin_pass')||'ZG123';
-  if(cur!==adminPass&&cur!=='ZG123'){toast('Current password incorrect.','error');return;}
-  if(!nw||nw.length<4){toast('New password must be at least 4 characters.','warning');return;}
-  AGENCY_ADMIN_PASS=nw; localStorage.setIt<script defer>
-
-
-function dbConfigLoad(){}
-function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
-
-
-
-// ============================================
-// DATABASE LAYER - JSONBin.io (free cloud DB)
-// Works across all browsers and devices
-// ============================================
-
-// ============================================
-// CLOUD DATABASE - JSONBin.io
-// Credentials are baked into this file.
-// To change: Settings > Cloud DB > Save & Download
-// ============================================
-var DB_CONFIG = {
-  masterKey: '',   // INJECTED - do not edit manually
-  binId: '',       // INJECTED - do not edit manually
-  baseUrl: 'https://api.jsonbin.io/v3/b',
-};
-
-function dbIsReady(){
-  return !!(DB_CONFIG.masterKey && DB_CONFIG.binId);
-}
-
-
-async function dbGet(path){
-  // Try cloud first if configured
-  if(dbIsReady()){
-    try{
-      var r = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest',{
-        headers:{'X-Master-Key':DB_CONFIG.masterKey,'X-Bin-Meta':'false'}
-      });
-      if(r.ok){
-        var d = await r.json();
-        var record = d.record||d;
-        // Cache locally for offline fallback
-        if(record.clients) localStorage.setItem('zg_db_clients',JSON.stringify(record.clients));
-        return record[path]!==undefined ? record[path] : null;
-      }
-    }catch(e){ console.warn('[DB] read failed:',e.message); }
-  }
-  // Local fallback
-  try{
-    return JSON.parse(localStorage.getItem('zg_db_'+path)||
-                      localStorage.getItem('zg_shared_clients')||'null');
-  }catch(e){ return null; }
-}
-
-async function dbSet(path, data){
-  // Always cache locally
-  try{
-    localStorage.setItem('zg_db_'+path, JSON.stringify(data));
-    if(path==='clients') localStorage.setItem('zg_shared_clients',JSON.stringify(data));
-  }catch(e){}
-
-  if(!dbIsReady()) return true;
-
-  // Write to cloud
-  try{
-    // Get current bin data
-    var current = {};
-    var r1 = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId+'/latest',{
-      headers:{'X-Master-Key':DB_CONFIG.masterKey,'X-Bin-Meta':'false'}
-    });
-    if(r1.ok){ var d1=await r1.json(); current=d1.record||d1||{}; }
-    current[path] = data;
-
-    // Write back
-    var r2 = await fetch(DB_CONFIG.baseUrl+'/'+DB_CONFIG.binId,{
-      method:'PUT',
-      headers:{
-        'Content-Type':'application/json',
-        'X-Master-Key':DB_CONFIG.masterKey,
-        'X-Bin-Versioning':'false'
-      },
-      body:JSON.stringify(current)
-    });
-    if(!r2.ok) throw new Error('HTTP '+r2.status);
-    console.log('[DB] saved to cloud ok');
-    return true;
-  }catch(e){
-    console.warn('[DB] write failed:',e.message);
-    return false;
-  }
-}
-
-
-// Initialize DB config on load
-function logActivity(u,n,a){ try{ var log=JSON.parse(localStorage.getItem("zg_activity_log")||"[]"); log.push({username:u,name:n,action:a||"Logged in",ts:Date.now()}); if(log.length>500)log=log.slice(-500); localStorage.setItem("zg_activity_log",JSON.stringify(log)); }catch(e){} }
-function getActivityLog(){ try{ return JSON.parse(localStorage.getItem("zg_activity_log")||"[]"); }catch(e){ return []; } }
-function formatAgo(ts){ var d=Date.now()-ts; if(d<60000)return "Just now"; if(d<3600000)return Math.floor(d/60000)+"m ago"; if(d<86400000)return Math.floor(d/3600000)+"h ago"; return Math.floor(d/86400000)+"d ago"; }
-
-// == BRAND THEME TOOL - Direct API Apply ==
-
-var BRAND = {
-  presets: {
-    ocean:    { primary:'#0066ff', sidebar:'#0a1628', sidebarText:'#ffffff', sidebarActive:'#0066ff', topbar:'#ffffff', btn:'#0066ff', btnText:'#ffffff', btnRadius:6, accent:'#0066ff', text:'#1a1a2e', heading:'#0a0a1a', font:'Inter, sans-serif' },
-    forest:   { primary:'#16a34a', sidebar:'#0f1f0f', sidebarText:'#ffffff', sidebarActive:'#16a34a', topbar:'#ffffff', btn:'#16a34a', btnText:'#ffffff', btnRadius:8, accent:'#16a34a', text:'#1a2e1a', heading:'#0a1a0a', font:"'Nunito', sans-serif" },
-    sunset:   { primary:'#ea580c', sidebar:'#1f0f05', sidebarText:'#ffffff', sidebarActive:'#ea580c', topbar:'#ffffff', btn:'#ea580c', btnText:'#ffffff', btnRadius:10, accent:'#ea580c', text:'#2e1a0a', heading:'#1a0a00', font:"'Poppins', sans-serif" },
-    royal:    { primary:'#7c3aed', sidebar:'#1a0a2e', sidebarText:'#ffffff', sidebarActive:'#7c3aed', topbar:'#ffffff', btn:'#7c3aed', btnText:'#ffffff', btnRadius:8, accent:'#7c3aed', text:'#1a0a2e', heading:'#0a001a', font:"'Montserrat', sans-serif" },
-    midnight: { primary:'#6366f1', sidebar:'#0f0f1a', sidebarText:'#c7c7ff', sidebarActive:'#6366f1', topbar:'#1a1a2e', btn:'#6366f1', btnText:'#ffffff', btnRadius:6, accent:'#818cf8', text:'#e0e0ff', heading:'#ffffff', font:"'DM Sans', sans-serif" },
-    rose:     { primary:'#e11d48', sidebar:'#2e0a1a', sidebarText:'#ffffff', sidebarActive:'#e11d48', topbar:'#ffffff', btn:'#e11d48', btnText:'#ffffff', btnRadius:12, accent:'#fb7185', text:'#1a0a0f', heading:'#0a0005', font:"'Plus Jakarta Sans', sans-serif" },
-  }
-};
-
-function openBrandCategoryTool(){
-  showScreen('screen-brand-category');
-}
-
-function openBrandThemeTool(){
-  showScreen('screen-brand-theme');
-  setTimeout(function(){ brandPreview(); }, 100);
-}
-
-function openBrandLogoTool(){
-  var chk=isConnReady(); if(!chk.ok){ toast(chk.msg,'warning'); return; }
-  showScreen('screen-brand-logo');
-}
-
-function brandGetValues(){
-  var g=function(id){ var el=document.getElementById(id); return el?el.value:''; };
-  return {
-    primary:g('bc-primary'), sidebar:g('bc-sidebar'), sidebarText:g('bc-sidebar-text'),
-    sidebarActive:g('bc-sidebar-active'), topbar:g('bc-topbar'),
-    btn:g('bc-btn'), btnText:g('bc-btn-text'), btnRadius:g('bc-btn-radius')||6,
-    accent:g('bc-accent'), text:g('bc-text'), heading:g('bc-heading'), font:g('bc-font'),
-  };
-}
-
-function brandSetValues(v){
-  var s=function(id,val){ var el=document.getElementById(id); if(el) el.value=val; };
-  s('bc-primary',v.primary); s('bc-primary-hex',v.primary);
-  s('bc-sidebar',v.sidebar); s('bc-sidebar-hex',v.sidebar);
-  s('bc-sidebar-text',v.sidebarText); s('bc-sidebar-text-hex',v.sidebarText);
-  s('bc-sidebar-active',v.sidebarActive); s('bc-sidebar-active-hex',v.sidebarActive);
-  s('bc-topbar',v.topbar); s('bc-topbar-hex',v.topbar);
-  s('bc-btn',v.btn); s('bc-btn-hex',v.btn);
-  s('bc-btn-text',v.btnText); s('bc-btn-text-hex',v.btnText);
-  s('bc-btn-radius',v.btnRadius);
-  var rv=document.getElementById('bc-btn-radius-val'); if(rv) rv.textContent=v.btnRadius+'px';
-  s('bc-accent',v.accent); s('bc-accent-hex',v.accent);
-  s('bc-text',v.text); s('bc-text-hex',v.text);
-  s('bc-heading',v.heading); s('bc-heading-hex',v.heading);
-  s('bc-font',v.font);
-  brandPreview();
-}
-
-function brandHexInput(colorId, hexId){
-  var hex=document.getElementById(hexId).value.trim();
-  if(/^#[0-9a-fA-F]{6}$/.test(hex)){
-    document.getElementById(colorId).value=hex;
-    brandPreview();
-  }
-}
-
-function applyPreset(name){
-  var p=BRAND.presets[name]; if(!p) return;
-  brandSetValues(p);
-  toast('Preset applied: '+name,'success');
-}
-
-function brandPreview(){
-  var v=brandGetValues();
-  var s=function(id,prop,val){ var el=document.getElementById(id); if(el) el.style[prop]=val; };
-  s('prev-sidebar','background',v.sidebar);
-  s('prev-nav-active','background',v.sidebarActive);
-  s('prev-nav-active','color',v.btnText);
-  s('prev-topbar','background',v.topbar);
-  s('prev-btn','background',v.btn);
-  s('prev-btn','color',v.btnText);
-  s('prev-btn','borderRadius',v.btnRadius+'px');
-  ['prev-stat1','prev-stat2','prev-stat3'].forEach(function(id){ s(id,'color',v.primary); });
-  s('prev-avatar','background',v.primary);
-  s('prev-avatar2','background',v.primary);
-  s('prev-link','color',v.accent);
-  s('prev-topbar-title','color',v.heading);
-  s('prev-panel-title','color',v.heading);
-  document.querySelectorAll('.prev-nav-item').forEach(function(el){
-    el.style.color=v.sidebarText; el.style.opacity='0.75';
-  });
-  var hexPairs=[['bc-primary','bc-primary-hex'],['bc-sidebar','bc-sidebar-hex'],['bc-sidebar-text','bc-sidebar-text-hex'],['bc-sidebar-active','bc-sidebar-active-hex'],['bc-topbar','bc-topbar-hex'],['bc-btn','bc-btn-hex'],['bc-btn-text','bc-btn-text-hex'],['bc-accent','bc-accent-hex'],['bc-text','bc-text-hex'],['bc-heading','bc-heading-hex']];
-  hexPairs.forEach(function(pair){
-    var cEl=document.getElementById(pair[0]); var hEl=document.getElementById(pair[1]);
-    if(cEl&&hEl&&hEl!==document.activeElement) hEl.value=cEl.value;
-  });
-  brandGenerateCSS(v);
-}
-
-function brandGenerateCSS(v){
-  var font=v.font;
-  var gf='';
-  if(font.indexOf('Poppins')>-1) gf="@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');\n";
-  else if(font.indexOf('Montserrat')>-1) gf="@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');\n";
-  else if(font.indexOf('Nunito')>-1) gf="@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');\n";
-  else if(font.indexOf('DM Sans')>-1) gf="@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');\n";
-  else if(font.indexOf('Plus Jakarta')>-1) gf="@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');\n";
-
-  var css=gf
-    +'/* GHL White Label Theme - ZG Tool Manager */\n\n'
-    +'/* FONT */\n* { font-family: '+font+' !important; }\n\n'
-    +'/* SIDEBAR */\n'
-    +'.sidebar-wrap, .sidebar, [class*="sidebar-container"], nav.sidebar { background: '+v.sidebar+' !important; }\n'
-    +'.sidebar-menu-item, .nav-item, [class*="menu-item"] { color: '+v.sidebarText+' !important; }\n'
-    +'.sidebar-menu-item.active, .nav-item.active { background: '+v.sidebarActive+' !important; color: '+v.btnText+' !important; }\n\n'
-    +'/* TOP BAR */\n'
-    +'.top-nav, .topbar, header { background: '+v.topbar+' !important; }\n\n'
-    +'/* BUTTONS */\n'
-    +'.btn-primary, button[type="submit"] { background: '+v.btn+' !important; color: '+v.btnText+' !important; border-radius: '+v.btnRadius+'px !important; }\n\n'
-    +'/* LINKS */\na { color: '+v.accent+' !important; }\n\n'
-    +'/* TEXT */\nbody, p, div { color: '+v.text+'; }\n'
-    +'h1,h2,h3,h4,h5,h6 { color: '+v.heading+' !important; }\n\n'
-    +'/* PRIMARY */\n[class*="primary"] { color: '+v.primary+' !important; }\n'
-    +'[class*="bg-primary"] { background: '+v.primary+' !important; }';
-
-  var el=document.getElementById('brand-css-output');
-  if(el) el.textContent=css;
-  return css;
-}
-
-async function brandApplyToGHL(){
-  var chk=isConnReady();
-  if(!chk.ok){ toast(chk.msg,'warning'); return; }
-  var k=apiKey(), l=locId();
-  var v=brandGetValues();
-  var css=brandGenerateCSS(v);
-
-  var btn=document.getElementById('brand-apply-btn');
-  var statusEl=document.getElementById('brand-apply-status');
-  if(btn){ btn.disabled=true; btn.textContent='Applying...'; }
-  if(statusEl){ statusEl.style.display='none'; }
-
-  var h={'Authorization':'Bearer '+k,'Version':'2021-07-28','Content-Type':'application/json'};
-
-  // Try multiple payload formats GHL supports
-  var payloads=[
-    { settings:{ customCss: css } },
-    { customCss: css },
-    { settings:{ css: css } },
-    { css: css },
-  ];
-
-  var applied=false;
-  var lastErr='';
-
-  for(var i=0;i<payloads.length;i++){
-    try{
-      var r=await fetch('https://services.leadconnectorhq.com/locations/'+l,{
-        method:'PUT',
-        headers:h,
-        body:JSON.stringify(payloads[i])
-      });
-      var raw=await r.text();
-      console.log('[BrandApply] payload',i,'status:',r.status,'body:',raw.slice(0,100));
-      if(r.ok){
-        applied=true;
-        break;
-      } else {
-        lastErr='HTTP '+r.status+': '+raw.slice(0,60);
-      }
-    }catch(err){
-      lastErr=err.message;
-    }
-  }
-
-  if(btn){ btn.disabled=false; btn.textContent='Apply Theme to GHL'; }
-
-  if(applied){
-    if(statusEl){
-      statusEl.style.display='block';
-      statusEl.style.background='rgba(16,185,129,0.08)';
-      statusEl.style.borderColor='rgba(16,185,129,0.3)';
-      statusEl.style.color='#10b981';
-      statusEl.textContent='Theme applied to your GHL location! Refresh GHL to see changes.';
-    }
-    toast('Theme applied to GHL! Refresh your CRM.','success');
-  } else {
-    // Fallback: copy to clipboard with instructions
-    brandFallbackCopy(css);
-    if(statusEl){
-      statusEl.style.display='block';
-      statusEl.style.background='rgba(245,158,11,0.08)';
-      statusEl.style.borderColor='rgba(245,158,11,0.3)';
-      statusEl.style.color='#f59e0b';
-      statusEl.textContent='CSS copied! Paste in GHL > Settings > Custom CSS. (Error: '+lastErr+')';
-    }
-    toast('CSS copied to clipboard - paste in GHL Settings','warning');
-  }
-}
-
-function brandFallbackCopy(text){
-  var ta=document.createElement('textarea');
-  ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
-  document.body.appendChild(ta); ta.select();
-  try{ document.execCommand('copy'); }catch(e){}
-  document.body.removeChild(ta);
-}
-
-function brandResetColors(){ applyPreset('ocean'); toast('Reset to Ocean Blue','info'); }
-
-function brandPreviewLogo(){
-  var url=document.getElementById('brand-logo-url').value.trim();
-  var prev=document.getElementById('brand-logo-preview'); if(!prev) return;
-  if(url){
-    prev.innerHTML='<img src="'+esc(url)+'" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display=\'none\'"/>';
-    var la=document.getElementById('prev-logo-area');
-    if(la) la.innerHTML='<img src="'+esc(url)+'" style="height:28px;object-fit:contain;"/>';
-  } else {
-    prev.innerHTML='&#128444;';
-    var la2=document.getElementById('prev-logo-area'); if(la2) la2.textContent='Your Brand';
-  }
-}
-
-function brandPreviewFavicon(){
-  var url=document.getElementById('brand-favicon-url').value.trim();
-  var prev=document.getElementById('brand-favicon-preview'); if(!prev) return;
-  prev.innerHTML=url?'<img src="'+esc(url)+'" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display=\'none\'"/>':'&#127758;';
-}
-
-async function brandLoadCurrent(){
-  var chk=isConnReady(); if(!chk.ok){ toast(chk.msg,'warning'); return; }
-  var k=apiKey(), l=locId();
-  toast('Loading current branding...','info');
-  var h={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
-  try{
-    var r=await fetch('https://services.leadconnectorhq.com/locations/'+l,{headers:h});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    var d=await r.json(); var loc=d.location||d;
-    var g=function(id,val){ var el=document.getElementById(id); if(el&&val) el.value=val; };
-    g('brand-biz-name',loc.name||loc.businessName);
-    g('brand-biz-phone',loc.phone||loc.phoneNumber);
-    g('brand-biz-email',loc.email||loc.businessEmail);
-    g('brand-biz-website',loc.website||loc.businessWebsite);
-    g('brand-biz-address',loc.address||[loc.address1,loc.city,loc.state].filter(Boolean).join(', '));
-    if(loc.logoUrl||loc.logo){ g('brand-logo-url',loc.logoUrl||loc.logo); brandPreviewLogo(); }
-    if(loc.faviconUrl||loc.favicon){ g('brand-favicon-url',loc.faviconUrl||loc.favicon); brandPreviewFavicon(); }
-    toast('Current branding loaded!','success');
-  }catch(err){ toast('Failed: '+err.message,'error'); }
-}
-
-async function brandSaveIdentity(){
-  var chk=isConnReady(); if(!chk.ok){ toast(chk.msg,'warning'); return; }
-  var k=apiKey(), l=locId();
-  var g=function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
-  var payload={};
-  var name=g('brand-biz-name'); if(name) payload.name=name;
-  var phone=g('brand-biz-phone'); if(phone) payload.phone=phone;
-  var email=g('brand-biz-email'); if(email) payload.email=email;
-  var website=g('brand-biz-website'); if(website) payload.website=website;
-  var address=g('brand-biz-address'); if(address) payload.address=address;
-  var logo=g('brand-logo-url'); if(logo) payload.logoUrl=logo;
-  var favicon=g('brand-favicon-url'); if(favicon) payload.faviconUrl=favicon;
-  if(!Object.keys(payload).length){ toast('No changes to save.','warning'); return; }
-  var errEl=document.getElementById('brand-logo-error'); var resEl=document.getElementById('brand-logo-result');
-  if(errEl) errEl.style.display='none'; if(resEl) resEl.style.display='none';
-  toast('Saving...','info');
-  try{
-    var r=await fetch('https://services.leadconnectorhq.com/locations/'+l,{method:'PUT',headers:{'Authorization':'Bearer '+k,'Version':'2021-07-28','Content-Type':'application/json'},body:JSON.stringify(payload)});
-    var raw=await r.text();
-    if(!r.ok) throw new Error('HTTP '+r.status+': '+raw.slice(0,80));
-    if(resEl){ resEl.style.display='block'; document.getElementById('brand-logo-result-text').textContent='Updated: '+Object.keys(payload).join(', '); }
-    toast('Saved to GHL!','success');
-  }catch(err){
-    if(errEl){ errEl.style.display='block'; document.getElementById('brand-logo-error-text').textContent=err.message; }
-    toast('Failed: '+err.message,'error');
-  }
-}
-
-
-// ============================================
-// PORTAL SYSTEM - Auth + Agency + Client
-// ============================================
-
-// Firebase Config (replace with your config)
-const FB_CONFIG = {
-  apiKey: "YOUR_FIREBASE_API_KEY",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-};
-
-// Portal State
-const PORTAL = {
-  currentUser: null,
-  clients: {},
-  useLocalFallback: true,
-  _pendingLocId: null,
-  _pendingLocName: null,
-};
-
-// DB helpers
-
-async function portalLoadClients(){
-  var data = await dbGet('clients');
-  PORTAL.clients = data || {};
-}
-
-async function portalLogin(){
-  var u = (document.getElementById('login-username').value||'').trim();
-  var p = (document.getElementById('login-password').value||'').trim();
-  var errEl = document.getElementById('login-error');
-  if(!u||!p){ errEl.textContent='Enter username and password.'; errEl.style.display='block'; return; }
-  errEl.style.display='none';
-  document.getElementById('login-btn').textContent='Signing in...';
-  document.getElementById('login-btn').disabled=true;
-
-  // Check admin
-  var adminPass = localStorage.getItem('zg_admin_pass')||'ZG123';
-  if(u==='admin'&&(p===adminPass||p==='ZG123')){
-    PORTAL.currentUser={username:'admin',role:'admin',name:'Agency Admin',tools:[],agencyKey:''};
-    var s=JSON.stringify(PORTAL.currentUser);
-    localStorage.setItem('zg_session',s); sessionStorage.setItem('zg_session',s);
-    document.getElementById('login-btn').textContent='Sign In'; document.getElementById('login-btn').disabled=false;
-    showScreen('screen-agency-portal'); renderAllSwitchers(); loadAgencyPortal();
-    return;
-  }
-
-  // Check client
-  await portalLoadClients();
-  var client = PORTAL.clients[u];
-  if(!client||client.password!==p){
-    errEl.textContent='Invalid username or password.'; errEl.style.display='block';
-    document.getElementById('login-btn').textContent='Sign In'; document.getElementById('login-btn').disabled=false;
-    return;
-  }
-  PORTAL.currentUser={username:u,role:'client',name:client.name,tools:client.tools||[],agencyKey:client.agencyKey||''};
-  var s2=JSON.stringify(PORTAL.currentUser);
-  localStorage.setItem('zg_session',s2); sessionStorage.setItem('zg_session',s2);
-  logActivity(u,client.name,'Logged in');
-  document.getElementById('login-btn').textContent='Sign In'; document.getElementById('login-btn').disabled=false;
-  showClientDashboard();
-}
-
-function portalRestoreSession(){
-  var sess = sessionStorage.getItem('zg_session') || localStorage.getItem('zg_session');
-  if(!sess) return false;
-  var user;
-  try{ user=JSON.parse(sess); }catch(e){ return false; }
-  if(!user||!user.role) return false;
-  PORTAL.currentUser=user;
-  if(user.role==='admin'){ showScreen('screen-agency-portal'); loadAgencyPortal(); return true; }
-  showClientDashboard(); return true;
-}
-
-function agencyConfirmLogout(){
-  var m=document.getElementById('modal-del'); if(!m){portalLogout();return;}
-  document.getElementById('modal-del-title').textContent='Sign Out';
-  document.getElementById('modal-del-text').textContent='Are you sure you want to sign out?';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
-  var acts=document.getElementById('modal-del-actions'); acts.innerHTML='';
-  var cb=document.createElement('button'); cb.className='btn btn-ghost'; cb.textContent='Cancel';
-  cb.onclick=function(){closeModal('modal-del');}; acts.appendChild(cb);
-  var sb=document.createElement('button');
-  sb.style.cssText='background:#ff4d6d;color:#fff;border:none;padding:10px 20px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;';
-  sb.textContent='Yes, Sign Out';
-  sb.onclick=function(){closeModal('modal-del');portalLogout();}; acts.appendChild(sb);
-  openModal('modal-del');
-}
-
-function agencyConfirmLogout(){
-  var m=document.getElementById('modal-del');if(!m){portalLogout();return;}
-  document.getElementById('modal-del-title').textContent='Sign Out';
-  document.getElementById('modal-del-text').textContent='Sign out of Agency Portal?';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  var acts=document.getElementById('modal-del-actions');acts.style.display='flex';acts.innerHTML='';
-  var cb=document.createElement('button');cb.className='btn btn-ghost';cb.textContent='Cancel';cb.onclick=function(){closeModal('modal-del');};acts.appendChild(cb);
-  var sb=document.createElement('button');sb.style.cssText='background:#ff4d6d;color:#fff;border:none;padding:10px 20px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;';sb.textContent='Sign Out';sb.onclick=function(){closeModal('modal-del');portalLogout();};acts.appendChild(sb);
-  openModal('modal-del');
-}
-function portalLogout(){
-  PORTAL.currentUser=null;
-  localStorage.removeItem('zg_session'); sessionStorage.removeItem('zg_session');localStorage.removeItem('zg_session');
-  var u=document.getElementById('login-username'); if(u) u.value='';
-  var p=document.getElementById('login-password'); if(p) p.value='';
-  showScreen('screen-login'); renderAllSwitchers();
-}
-
-// Client helpers
-function showClientDashboard(){
-  var user=PORTAL.currentUser; if(!user){ showScreen('screen-login'); return; }
-  if(user.agencyKey){ var k=document.getElementById('globalApiKey'); if(k) k.value=user.agencyKey; }
-  showScreen('screen-client-home');
-  var n=document.getElementById('client-home-name'); if(n) n.textContent='Welcome back, '+user.name+'!';
-  clientLoadSubAccounts();
-}
-
-async function clientLoadSubAccounts(){
-  var user=PORTAL.currentUser; if(!user) return;
-  var k=user.agencyKey||'';
-  var grid=document.getElementById('client-subacc-grid'); if(!grid) return;
-  if(!k){ grid.innerHTML='<div class="state-box" style="grid-column:1/-1;"><div class="icon">&#128274;</div><p>No agency API key set. Contact your agency.</p></div>'; return; }
-  grid.innerHTML='<div class="state-box" style="grid-column:1/-1;padding:20px;"><div class="spinner" style="border-top-color:#6c63ff;"></div><p>Loading accounts...</p></div>';
-  var h={'Authorization':'Bearer '+k,'Version':'2021-07-28','Content-Type':'application/json'};
-  var locs=[];
-  try{
-    var companyId='';
-    try{ var me=await fetch('https://services.leadconnectorhq.com/users/me',{headers:h}); if(me.ok){ var md=await me.json(); companyId=md.companyId||(md.company&&md.company.id)||''; }}catch(ex){}
-    var eps=[companyId?'https://services.leadconnectorhq.com/locations/search?companyId='+companyId+'&limit=100':null,'https://services.leadconnectorhq.com/locations/search?limit=100'].filter(Boolean);
-    for(var i=0;i<eps.length;i++){
-      try{ var r=await fetch(eps[i],{headers:h}); if(!r.ok) continue; var d=await r.json(); var found=d.locations||d.data||d.subAccounts||[]; if(found.length){ locs=found; break; }}catch(e2){}
-    }
-  }catch(err){}
-  if(!locs.length){ grid.innerHTML='<div class="state-box" style="grid-column:1/-1;"><div class="icon">&#10060;</div><p>No accounts found.</p></div>'; return; }
-  var colors=['#6c63ff','#a855f7','#3b82f6','#10b981','#f59e0b','#ef4444'];
-  var html='';
-  locs.forEach(function(loc){
-    var id=loc.id||loc._id||''; var name=loc.name||loc.businessName||id;
-    var ini=name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'??';
-    var col=colors[Math.abs(id.split('').reduce(function(a,c){return a+c.charCodeAt(0);},0))%colors.length];
-    html+='<div class="client-acc-card" data-lid="'+esc(id)+'" data-lname="'+esc(name)+'" onclick="clientSelectAccount(this)">'
-      +'<div style="width:38px;height:38px;border-radius:50%;background:'+col+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;">'+esc(ini)+'</div>'
-      +'<div style="overflow:hidden;min-width:0;"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(name)+'</div>'
-      +'<div style="font-size:10px;color:var(--text-muted);margin-top:1px;">'+esc(id.slice(0,20))+'</div></div></div>';
-  });
-  grid.innerHTML=html;
-}
-
-function clientSelectAccount(el){
-  var locId=el.getAttribute('data-lid'); var locName=el.getAttribute('data-lname');
-  if(!locId) return;
-  PORTAL._pendingLocId=locId; PORTAL._pendingLocName=locName;
-  var ini=locName.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'??';
-  if(document.getElementById('connect-acc-name')) document.getElementById('connect-acc-name').textContent=locName;
-  if(document.getElementById('connect-nav-name')) document.getElementById('connect-nav-name').textContent=locName;
-  if(document.getElementById('connect-acc-id')) document.getElementById('connect-acc-id').textContent=locId;
-  if(document.getElementById('connect-acc-initials')) document.getElementById('connect-acc-initials').textContent=ini;
-  var inp=document.getElementById('connect-apikey-input'); if(inp) inp.value='';
-  var errEl=document.getElementById('connect-error'); if(errEl) errEl.style.display='none';
-  var connOk=document.getElementById('connect-ok'); if(connOk) connOk.style.display='none';
-  var btn=document.getElementById('connect-btn'); if(btn){ btn.textContent='Connect'; btn.style.background=''; }
-  var sec=document.getElementById('connect-tools-section'); if(sec) sec.style.display='none';
-  showScreen('screen-client-connect');
-  setTimeout(function(){ if(inp) inp.focus(); },300);
-}
-
-function connectAndEnter(){
-  var apiKeyVal=document.getElementById('connect-apikey-input').value.trim();
-  var errEl=document.getElementById('connect-error');
-  if(!apiKeyVal){ if(errEl){ errEl.textContent='Enter your API key.'; errEl.style.display='block'; } return; }
-  var locId=PORTAL._pendingLocId; var locName=PORTAL._pendingLocName;
-  if(!locId){ showScreen('screen-client-home'); return; }
-  document.getElementById('globalApiKey').value=apiKeyVal;
-  document.getElementById('globalLocationId').value=locId;
-  if(errEl) errEl.style.display='none';
-  var connOk=document.getElementById('connect-ok'); if(connOk) connOk.style.display='flex';
-  var btn=document.getElementById('connect-btn'); if(btn){ btn.textContent='Connected'; btn.style.background='#10b981'; }
-  var sec=document.getElementById('connect-tools-section'); if(sec) sec.style.display='block';
-  renderConnectTools(); toast('Connected to '+locName,'success');
-  setTimeout(function(){ var ts=document.getElementById('connect-tools-section'); if(ts) ts.scrollIntoView({behavior:'smooth',block:'start'}); },300);
-}
-
-function renderConnectTools(){
-  var user=PORTAL.currentUser; if(!user) return;
-  var grid=document.getElementById('connect-tools-grid'); if(!grid) return;
-  var tools=user.tools||[];
-  var cats=[
-    {label:'Field & Value Manager',color:'#6c63ff',icon:'&#9654;',key:'fv',tools:['fields','folders','values','vfolders']},
-    {label:'Calendar Manager',color:'#3b82f6',icon:'&#128197;',key:'calendar',tools:['calendars','appointments']},
-    {label:'Payment Manager',color:'#f59e0b',icon:'&#128203;',key:'payments',tools:['invoices','documents','orders','products']},
-    {label:'Marketing Manager',color:'#a855f7',icon:'&#128140;',key:'marketing',tools:['email-templ','tags','workflows']},
-    {label:'Brand & Design',color:'#ec4899',icon:'&#127912;',key:'brand',tools:['brand']},
-  ];
-  var html='';
-  cats.forEach(function(cat){
-    var ct=cat.tools.filter(function(t){ return tools.indexOf(t)>-1||(cat.key==='brand'&&tools.indexOf('brand')>-1); });
-    if(!ct.length&&cat.key!=='brand') return;
-    if(cat.key==='brand'&&tools.indexOf('brand')===-1) return;
-    var rgb=hexToRgb(cat.color);
-    html+='<div class="cat-card" style="border:1px solid rgba('+rgb+',0.3);background:var(--surface);cursor:pointer;" onclick="openCategory(\x27'+cat.key+'\x27)">';
-      +'<div class="cat-card-top"><div class="cat-card-icon" style="background:rgba('+rgb+',0.1);border:1px solid rgba('+rgb+',0.3);">'+cat.icon+'</div>'
-      +'<span class="cat-badge badge-live" style="color:'+cat.color+';border-color:rgba('+rgb+',0.3);background:rgba('+rgb+',0.07);">&#9679; Live</span></div>'
-      +'<div class="cat-card-title" style="color:#fff;">'+cat.label+'</div>'
-      +'<div class="cat-card-footer"><span class="cat-card-count">Available</span><span class="cat-card-cta" style="color:'+cat.color+';">Open &#8594;</span></div></div>';
-  });
-  grid.innerHTML=html||'<div class="state-box"><div class="icon">&#128274;</div><p>No tools assigned.</p></div>';
-}
-
-function hexToRgb(hex){
-  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  return r+','+g+','+b;
-}
-
-function renderClientDashboard(){}
-function clientChangeAccount(){ showScreen('screen-client-home'); }
-
-
-// ============================================
-// AGENCY PORTAL
-// ============================================
-var AGENCY_ADMIN_PASS = 'ZG123';
-var ACTIVITY_KEY = 'zg_activity_log';
-
-var ALL_TOOLS = [
-  {id:'fields',label:'Custom Fields',icon:'&#9654;',color:'#6c63ff'},
-  {id:'folders',label:'Field Folders',icon:'&#128193;',color:'#6c63ff'},
-  {id:'values',label:'Custom Values',icon:'&#128190;',color:'#10b981'},
-  {id:'vfolders',label:'Value Folders',icon:'&#128194;',color:'#10b981'},
-  {id:'calendars',label:'Calendars',icon:'&#128197;',color:'#3b82f6'},
-  {id:'appointments',label:'Appointments',icon:'&#128198;',color:'#3b82f6'},
-  {id:'invoices',label:'Invoices',icon:'&#128203;',color:'#f59e0b'},
-  {id:'documents',label:'Documents',icon:'&#128196;',color:'#f59e0b'},
-  {id:'orders',label:'Orders',icon:'&#128230;',color:'#f59e0b'},
-  {id:'products',label:'Products',icon:'&#128717;',color:'#f59e0b'},
-  {id:'email-templ',label:'Email Templates',icon:'&#128140;',color:'#a855f7'},
-  {id:'tags',label:'Tags',icon:'&#127991;',color:'#a855f7'},
-  {id:'workflows',label:'Workflows',icon:'&#9889;',color:'#a855f7'},
-  {id:'brand',label:'Brand & Design',icon:'&#127912;',color:'#ec4899'},
-];
-
-function agencyShowTab(tab){
-  var tabs=['overview','clients','activity','tools','settings'];
-  tabs.forEach(function(t){
-    var el=document.getElementById('tab-'+t); if(el) el.style.display=t===tab?'block':'none';
-    var btn=document.getElementById('nav-'+t); if(btn) btn.classList.toggle('active-nav',t===tab);
-  });
-  var titles={overview:'Overview',clients:'Client Accounts',activity:'Activity Log',tools:'Tool Analytics',settings:'Settings'};
-  var ti=document.getElementById('agency-page-title'); if(ti) ti.textContent=titles[tab]||tab;
-  if(tab==='overview') renderOverview();
-  if(tab==='clients') renderClientsTable('','');
-  if(tab==='activity') renderActivityLog();
-  if(tab==='tools') renderToolsTab();
-  if(tab==='settings') agencyLoadDbConfigUI();
-  if(tab==='settings') agencyLoadDbConfigUI();
-}
-
-async function loadAgencyPortal(){
-  await portalLoadClients();
-  var now=new Date(); var el=document.getElementById('agency-last-refresh');
-  if(el) el.textContent='Updated '+now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  updateAgencyStats(); renderClientsTable('',''); renderOverview(); agencyShowTab('overview');
-}
-
-function updateAgencyStats(){
-  var clients=Object.values(PORTAL.clients);
-  var log=getActivityLog(); var now=Date.now(); var dayMs=86400000;
-  var today=[...new Set(log.filter(function(e){return now-e.ts<dayMs;}).map(function(e){return e.username;}))];
-  var week=[...new Set(log.filter(function(e){return now-e.ts<7*dayMs;}).map(function(e){return e.username;}))];
-  var toolsTotal=clients.reduce(function(a,c){return a+(c.tools||[]).length;},0);
-  var s=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
-  s('stat-total-clients',clients.length); s('stat-active-today',today.length);
-  s('stat-tools-total',toolsTotal); s('stat-active-week',week.length);
-}
-
-function renderClientsTable(q, toolFilter){
-  var wrap=document.getElementById('clients-table-wrap'); if(!wrap) return;
-  var clients=Object.entries(PORTAL.clients);
-  q=(q||'').toLowerCase();
-  toolFilter=toolFilter||document.getElementById('client-tool-filter').value;
-  var filtered=clients.filter(function(e){
-    var username=e[0],cl=e[1];
-    var matchQ=!q||(cl.name||'').toLowerCase().includes(q)||username.toLowerCase().includes(q);
-    var matchT=!toolFilter||(cl.tools||[]).indexOf(toolFilter)>-1;
-    return matchQ&&matchT;
-  });
-  if(!filtered.length){
-    wrap.innerHTML='<div class="state-box" style="padding:24px;"><div class="icon">&#128101;</div><p>'+(clients.length?'No clients match.':'No clients yet. Click <strong>+ Add Client</strong> to get started.')+'</p></div>';
-    return;
-  }
-  var log=getActivityLog();
-  var now=Date.now(); var dayMs=86400000; var weekMs=7*dayMs;
-  var h='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">'
-    +'<thead><tr style="border-bottom:1px solid var(--border);">'
-    +'<th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Client</th>'
-    +'<th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Username</th>'
-    +'<th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Tools</th>'
-    +'<th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Last Active</th>'
-    +'<th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Status</th>'
-    +'<th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Actions</th>'
-    +'</tr></thead><tbody>';
-  filtered.forEach(function(entry){
-    var username=entry[0],cl=entry[1];
-    var ini=(cl.name||username).split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?';
-    var tc=(cl.tools||[]).length;
-    var ul=log.filter(function(e){return e.username===username;});
-    var last=ul.length?Math.max.apply(null,ul.map(function(e){return e.ts;})):0;
-    var today2=last&&(now-last<dayMs);
-    var week2=last&&(now-last<weekMs);
-    var dot=today2?'#10b981':week2?'#f59e0b':'#6b7094';
-    var lbl=today2?'Active today':week2?'This week':last?formatAgo(last):'Never';
-    var row='<tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background=\x27var(--surface2)\x27" onmouseout="this.style.background=\x27\x27">'
-      +'<td style="padding:12px 16px;">'
-        +'<div style="display:flex;align-items:center;gap:10px;">'
-          +'<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6c63ff,#a855f7);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;">'+esc(ini)+'</div>'
-          +'<div>'
-            +'<div style="font-size:13px;font-weight:600;color:var(--text);">'+esc(cl.name||username)+'</div>'
-            +'<div style="font-size:11px;color:var(--text-muted);">'+(cl.agencyKey?cl.agencyKey.slice(0,16)+'...':'No API key')+'</div>'
-          +'</div>'
-        +'</div>'
-      +'</td>'
-      +'<td style="padding:12px 16px;font-size:13px;color:var(--text-muted);">'+esc(username)+'</td>'
-      +'<td style="padding:12px 16px;">'
-        +'<span style="background:rgba(108,99,255,0.12);color:#6c63ff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">'+tc+' tool'+(tc!==1?'s':'')+'</span>'
-      +'</td>'
-      +'<td style="padding:12px 16px;font-size:12px;color:var(--text-muted);">'+esc(lbl)+'</td>'
-      +'<td style="padding:12px 16px;">'
-        +'<div style="display:flex;align-items:center;gap:6px;">'
-          +'<div style="width:7px;height:7px;border-radius:50%;background:'+dot+';"></div>'
-          +'<span style="font-size:11px;font-weight:600;color:'+dot+';">'+(today2?'Online':'Offline')+'</span>'
-        +'</div>'
-      +'</td>'
-      +'<td style="padding:12px 16px;text-align:center;">'
-        +'<div style="display:flex;gap:6px;justify-content:center;">'
-          +'<button class="btn btn-ghost" style="padding:5px 12px;font-size:12px;" data-eu="'+esc(username)+'" onclick="agencyEditClient(this.getAttribute(\x27data-eu\x27))">Edit</button>'
-          +'<button class="btn btn-danger" style="padding:5px 10px;font-size:12px;" data-du="'+esc(username)+'" onclick="agencyDeleteClient(this.getAttribute(\x27data-du\x27))">Del</button>'
-        +'</div>'
-      +'</td>'
-    +'</tr>';
-    h+=row;
-  });
-  h+='</tbody></table></div>';
-  wrap.innerHTML=h;
-}
-
-function filterClientTable(q){
-  var tf=document.getElementById('client-tool-filter'); renderClientsTable(q,tf?tf.value:'');
-}
-
-function renderOverview(){
-  updateAgencyStats();
-  var log=getActivityLog().slice(-20).reverse();
-  var actEl=document.getElementById('overview-activity');
-  if(actEl){
-    if(!log.length){ actEl.innerHTML='<div class="state-box" style="padding:20px;"><p>No activity yet.</p></div>'; }
-    else{
-      var h='';
-      log.forEach(function(e){
-        h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;margin-bottom:2px;background:var(--surface2);">'
-          +'<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6c63ff,#a855f7);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;">'+esc((e.name||e.username||'?')[0].toUpperCase())+'</div>'
-          +'<div style="flex:1;"><div style="font-size:12px;font-weight:600;color:var(--text);">'+esc(e.name||e.username)+'</div><div style="font-size:11px;color:var(--text-muted);">'+esc(e.action||'Logged in')+'</div></div>'
-          +'<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;">'+formatAgo(e.ts)+'</div></div>';
-      });
-      actEl.innerHTML=h;
-    }
-  }
-  var clients=Object.values(PORTAL.clients);
-  var toolCounts={};
-  clients.forEach(function(c){(c.tools||[]).forEach(function(t){toolCounts[t]=(toolCounts[t]||0)+1;});});
-  var toolsEl=document.getElementById('overview-tools');
-  if(toolsEl){
-    if(!Object.keys(toolCounts).length){ toolsEl.innerHTML='<div class="state-box" style="padding:20px;"><p>No tools assigned yet.</p></div>'; }
-    else{
-      var sorted=Object.entries(toolCounts).sort(function(a,b){return b[1]-a[1];});
-      var max2=sorted[0][1];
-      var tlabels={'fields':'Custom Fields','folders':'Field Folders','values':'Custom Values','vfolders':'Value Folders','calendars':'Calendars','appointments':'Appointments','invoices':'Invoices','documents':'Documents','orders':'Orders','products':'Products','email-templ':'Email Templates','tags':'Tags','workflows':'Workflows','brand':'Brand & Design'};
-      var tcolors={'fields':'#6c63ff','folders':'#6c63ff','values':'#10b981','vfolders':'#10b981','calendars':'#3b82f6','appointments':'#3b82f6','invoices':'#f59e0b','documents':'#f59e0b','orders':'#f59e0b','products':'#f59e0b','email-templ':'#a855f7','tags':'#a855f7','workflows':'#a855f7','brand':'#ec4899'};
-      var h2='';
-      sorted.forEach(function(entry){
-        var tid=entry[0],cnt=entry[1]; var col=tcolors[tid]||'#6c63ff'; var pct=Math.round((cnt/max2)*100);
-        h2+='<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;color:var(--text);">'+esc(tlabels[tid]||tid)+'</span><span style="font-size:12px;font-weight:700;color:'+col+';">'+cnt+' client'+(cnt!==1?'s':'')+'</span></div>'
-          +'<div style="height:6px;background:var(--surface2);border-radius:3px;"><div style="height:100%;width:'+pct+'%;background:'+col+';border-radius:3px;"></div></div></div>';
-      });
-      toolsEl.innerHTML=h2;
-    }
-  }
-}
-
-function renderActivityLog(){
-  var wrap=document.getElementById('activity-log-wrap'); if(!wrap) return;
-  var log=getActivityLog().slice().reverse();
-  if(!log.length){ wrap.innerHTML='<div class="state-box" style="padding:24px;"><p>No activity recorded yet.</p></div>'; return; }
-  var h='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">'
-    +'<thead><tr style="border-bottom:1px solid var(--border);">'
-    +'<th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Client</th>'
-    +'<th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Action</th>'
-    +'<th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Time</th>'
-    +'</tr></thead><tbody>';
-  log.slice(0,100).forEach(function(e){
-    var d=new Date(e.ts);
-    h+='<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 16px;"><div style="font-size:13px;font-weight:600;color:var(--text);">'+esc(e.name||e.username)+'</div><div style="font-size:11px;color:var(--text-muted);">@'+esc(e.username)+'</div></td>'
-      +'<td style="padding:10px 16px;font-size:13px;color:var(--text);">'+esc(e.action||'Logged in')+'</td>'
-      +'<td style="padding:10px 16px;font-size:12px;color:var(--text-muted);">'+d.toLocaleString()+'</td></tr>';
-  });
-  h+='</tbody></table></div>';
-  wrap.innerHTML=h;
-}
-
-function renderToolsTab(){
-  var grid=document.getElementById('tools-overview-grid'); if(!grid) return;
-  var clients=Object.values(PORTAL.clients);
-  var h='';
-  ALL_TOOLS.forEach(function(t){
-    var cnt=clients.filter(function(c){return (c.tools||[]).indexOf(t.id)>-1;}).length;
-    var pct=clients.length>0?Math.round((cnt/clients.length)*100):0;
-    var rgb=hexToRgb(t.color);
-    h+='<div style="background:var(--surface);border:1px solid rgba('+rgb+',0.3);border-radius:14px;padding:20px;">'
-      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;"><div style="width:38px;height:38px;border-radius:10px;background:rgba('+rgb+',0.1);border:1px solid rgba('+rgb+',0.3);display:flex;align-items:center;justify-content:center;font-size:18px;">'+t.icon+'</div>'
-      +'<div style="font-size:13px;font-weight:700;color:var(--text);">'+t.label+'</div></div>'
-      +'<div style="font-size:28px;font-weight:800;color:'+t.color+';margin-bottom:4px;">'+cnt+'</div>'
-      +'<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">client'+(cnt!==1?'s have':'has')+' access</div>'
-      +'<div style="height:5px;background:var(--surface2);border-radius:3px;"><div style="height:100%;width:'+pct+'%;background:'+t.color+';border-radius:3px;"></div></div>'
-      +'<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">'+pct+'% of clients</div></div>';
-  });
-  grid.innerHTML=h;
-}
-
-function getActivityLog(){
-  try{return JSON.parse(localStorage.getItem(ACTIVITY_KEY)||'[]');}catch(e){return [];}
-}
-function logActivity(username,name,action){
-  try{
-    var log=getActivityLog();
-    log.push({username:username,name:name,action:action||'Logged in',ts:Date.now()});
-    if(log.length>500) log=log.slice(-500);
-    localStorage.setItem(ACTIVITY_KEY,JSON.stringify(log));
-  }catch(e){}
-}
-function formatAgo(ts){
-  var diff=Date.now()-ts;
-  if(diff<60000) return 'Just now';
-  if(diff<3600000) return Math.floor(diff/60000)+'m ago';
-  if(diff<86400000) return Math.floor(diff/3600000)+'h ago';
-  return Math.floor(diff/86400000)+'d ago';
-}
-
-function agencyOpenAddClient(){ agencyOpenClientModal(null); }
-function agencyEditClient(u){ agencyOpenClientModal(u); }
-
-
-function clientFormToggleAll(checked){
-  document.querySelectorAll('#client-form-tools input[type="checkbox"]').forEach(function(cb){
-    cb.checked = checked;
-  });
-}
-
-function clientFormUpdateSelectAll(){
-  var all = document.querySelectorAll('#client-form-tools input[type="checkbox"]');
-  var checked = document.querySelectorAll('#client-form-tools input[type="checkbox"]:checked');
-  var sa = document.getElementById('client-form-select-all');
-  if(sa) sa.checked = all.length > 0 && checked.length === all.length;
-}
-function agencyOpenClientModal(editUsername){
-  var isEdit=!!editUsername; var cl=isEdit?PORTAL.clients[editUsername]:{};
-  var toolBoxes=ALL_TOOLS.map(function(t){
-    var checked=isEdit&&(cl.tools||[]).indexOf(t.id)>-1;
-    return '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:var(--surface2);cursor:pointer;border:1px solid var(--border);">'
-      +'<input type="checkbox" value="'+t.id+'" '+(checked?'checked':'')+' style="width:16px;height:16px;accent-color:'+t.color+'"/>'
-      +'<span style="font-size:13px;color:var(--text);">'+t.icon+' '+t.label+'</span></label>';
-  }).join('');
-  document.getElementById('modal-client-title').textContent=isEdit?'Edit Client':'Add New Client';
-  document.getElementById('client-form-name').value=isEdit?cl.name:'';
-  document.getElementById('client-form-username').value=isEdit?editUsername:'';
-  document.getElementById('client-form-username').disabled=isEdit;
-  document.getElementById('client-form-password').value=isEdit?cl.password:'';
-  document.getElementById('client-form-apikey').value=isEdit?cl.agencyKey||'':'';
-  document.getElementById('client-form-tools').innerHTML=toolBoxes;
-  document.getElementById('client-form-edit-user').value=isEdit?editUsername:'';
-  document.getElementById('client-form-error').style.display='none';
-  var _sa=document.getElementById('client-form-select-all');if(_sa)_sa.checked=false;
   openModal('modal-client-form');
 }
 
@@ -5051,8 +4173,14 @@ let locationTokenCache = {};
 const SWITCHER_SCREENS = ['login','agency-portal','client-home','client-connect','brand-category','brand-theme','brand-logo','cat','fields','folders','values','vfolders','calendars','cal-category','appointments','pay-category','invoices','documents','orders','paylinks'];
 
 // == UTILS ==
-function apiKey(){ return document.getElementById('globalApiKey').value.trim(); }
-function locId(){  return document.getElementById('globalLocationId').value.trim(); }
+function apiKey(){
+  var el=document.getElementById('globalApiKey');
+  return (el&&el.value.trim())||(PORTAL._connectedApiKey||'');
+}
+function locId(){
+  var el=document.getElementById('globalLocationId');
+  return (el&&el.value.trim())||(PORTAL._connectedLocId||'');
+}
 function esc(s){ return String(s).replace(/&/g,'\u0026amp;').replace(/</g,'\u0026lt;').replace(/>/g,'\u0026gt;').replace(/"/g,'\u0026quot;'); }
 function hi(t,q,cls){
   if(!q) return esc(t);
@@ -5090,17 +4218,25 @@ function showScreen(id){
 }
 function goHome(){
   if(PORTAL&&PORTAL.currentUser&&PORTAL.currentUser.role==='client'){
-    var locId=document.getElementById('globalLocationId');
-    if(locId&&locId.value){
+    var lid=document.getElementById('globalLocationId');
+    if((lid&&lid.value)||(PORTAL._connectedLocId)){
       showScreen('screen-client-connect');
       var sec=document.getElementById('connect-tools-section');
       if(sec) sec.style.display='block';
-    } else {
-      showScreen('screen-client-home');
-    }
-  } else {
-    showScreen('screen-login');
-  }
+    } else { showScreen('screen-client-home'); }
+  } else if(PORTAL&&PORTAL.currentUser&&PORTAL.currentUser.role==='admin'){
+    showScreen('screen-agency-portal');
+  } else { showScreen('screen-login'); }
+}
+function goCategory(){ showScreen('screen-category'); renderAllSwitchers(); }
+
+// == CONNECTION ==
+function setConnMode(mode){
+  document.getElementById('conn-single').style.display = (mode==='single') ? 'block' : 'none';
+  document.getElementById('conn-agency').style.display = (mode==='agency') ? 'block' : 'none';
+  var tabs = document.querySelectorAll('.home-mode-tab');
+  if(tabs[0]) tabs[0].classList.toggle('active', mode==='single');
+  if(tabs[1]) tabs[1].classList.toggle('active', mode==='agency');
 }
 function singleConnChanged(){
   var dot=document.getElementById('single-status-dot');
@@ -7883,6 +7019,16 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
+
+
+
+
+
+
+
+
+
 
 
 </script>
