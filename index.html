@@ -1034,6 +1034,15 @@
                 <button class="btn" style="background:linear-gradient(135deg,#6c63ff,#a855f7);color:#fff;font-weight:700;" onclick="agencySaveDbConfig()">&#128190; Save &amp; Connect</button>
                 <button class="btn btn-ghost" onclick="agencyTestDbConfig()">&#128269; Test Connection</button>
                 <button class="btn btn-ghost" onclick="agencySyncCloud()">&#9729; Push All Clients to Cloud</button>
+                <button class="btn" style="background:#10b981;color:#fff;font-weight:700;" onclick="agencyDownloadUpdatedFiles()">&#8681; Download Configured File</button>
+              </div>
+              <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:12px;font-size:12px;color:var(--text-muted);line-height:1.7;">
+                <strong style="color:#10b981;">&#9312; Setup steps:</strong><br/>
+                1. Enter credentials &rarr; Save &amp; Connect &rarr; Test Connection<br/>
+                2. Add your clients (Clients tab)<br/>
+                3. Push All Clients to Cloud<br/>
+                4. <strong style="color:#fff;">Download Configured File</strong> &rarr; deploy THIS file to GitHub/Vercel<br/>
+                5. Done &mdash; every browser/device reads from JSONBin automatically
               </div>
               <div id="db-config-msg" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;border:1px solid;"></div>
             </div>
@@ -3091,22 +3100,10 @@
 <div class="modal-overlay" id="modal-del"><div class="modal">
   <h2 class="c-danger" id="modal-del-title">⚠️ Confirm Deletion</h2>
   <p id="modal-del-text"></p>
-  <div class="progress-bar-wrap" id="modal-del-prog-wrap" style="display:none;"><div class="progress-bar" id="modal-del-prog-bar" style="background:var(--danger);"></div></div>
-  <p class="progress-label" id="modal-del-prog-label" style="display:none;"></p>
-  <div class="modal-actions" id="modal-del-actions">
-    <button class="btn btn-ghost" onclick="closeModal('modal-del')">Cancel</button>
-    <button class="btn btn-danger" id="modal-del-confirm">Yes, Delete</button>
+  <div class="progress-bar-wrap" id="modal-del-prog-wrap" style="display:none;">
   </div>
-</div></div>
-
-<div class="modal-overlay" id="modal-rec"><div class="modal">
-  <h2 class="c-success">↩️ Recover Items</h2>
-  <p id="modal-rec-text"></p>
-  <div class="progress-bar-wrap" id="modal-rec-prog-wrap" style="display:none;"><div class="progress-bar" id="modal-rec-prog-bar" style="background:var(--success);"></div></div>
-  <p class="progress-label" id="modal-rec-prog-label" style="display:none;"></p>
-  <div class="modal-actions
-<script defer>
-
+  </div>
+  </div><script defer>
 
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
@@ -3124,18 +3121,18 @@ function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 // To change: Settings > Cloud DB > Save & Download
 // ============================================
 var DB_CONFIG = {
-  masterKey: '',   // INJECTED - do not edit manually
-  binId: '',       // INJECTED - do not edit manually
+  masterKey: '$2a$10$CPsQf/EfuLV795UKlU4/xuP9p2YeZCu3DaRr0MdJI6LhS4kFxZNzy',
+  binId: '6a6372dbda38895dfe8a1f8c',
   baseUrl: 'https://api.jsonbin.io/v3/b',
 };
 
 // Always load saved credentials on startup
-(function(){
-  var mk=localStorage.getItem('zg_jsonbin_key')||'';
-  var bid=localStorage.getItem('zg_jsonbin_bin')||'';
-  if(mk&&bid){ DB_CONFIG.masterKey=mk; DB_CONFIG.binId=bid; }
-})();
+// credentials hardcoded above
 
+
+// Pre-load hardcoded credentials into localStorage for UI sync
+localStorage.setItem('zg_jsonbin_key', DB_CONFIG.masterKey);
+localStorage.setItem('zg_jsonbin_bin', DB_CONFIG.binId);
 function dbIsReady(){
   return !!(DB_CONFIG.masterKey && DB_CONFIG.binId);
 }
@@ -4044,11 +4041,10 @@ function agencySaveDbConfig(){
   if(!key||!bin){ agencyDbMsg('Enter both Master Key and Bin ID.','error'); return; }
   DB_CONFIG.masterKey=key;
   DB_CONFIG.binId=bin;
-  // Save to localStorage so it persists in this browser
   localStorage.setItem('zg_jsonbin_key',key);
   localStorage.setItem('zg_jsonbin_bin',bin);
-  agencyDbMsg('Saved! Testing connection...','info');
   updateDbBadge();
+  agencyDbMsg('Saved! Testing...','info');
   agencyTestDbConfig();
 }
 
@@ -7066,7 +7062,6 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
-
 
 </script>
 </body>
