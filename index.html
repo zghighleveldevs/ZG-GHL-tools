@@ -3106,13 +3106,19 @@
     </div><div id="client-form-error" style="display:none;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);color:#ff4d6d;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;"></div><div style="display:flex;gap:10px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="closeModal('modal-client-form')">Cancel</button><button class="btn" style="background:linear-gradient(135deg,#6c63ff,#a855f7);color:#fff;font-weight:700;" onclick="agencySaveClient()">Save Client</button></div></div></div>
 
 <div class="modal-overlay" id="modal-del"><div class="modal">
-  <h2 class="c-danger" id="modal-del-title">⚠️ Confirm Deletion</h2>
+  <h2 class="c-danger" id="modal-del-title">Confirm Deletion</h2>
   <p id="modal-del-text"></p>
   <div class="progress-bar-wrap" id="modal-del-prog-wrap" style="display:none;">
+    <div class="progress-bar" id="modal-del-prog-bar"></div>
   </div>
+  <p class="progress-label" id="modal-del-prog-label" style="display:none;"></p>
+  <div class="modal-actions" id="modal-del-actions" style="display:flex;">
+    <button class="btn btn-ghost" onclick="closeModal('modal-del')">Cancel</button>
+    <button class="btn btn-danger" id="modal-del-confirm">Delete</button>
   </div>
-  </div><div id="toast" class="toast"></div>
+</div></div><div id="toast" class="toast"></div>
 <script defer>
+
 
 
 
@@ -3592,9 +3598,9 @@ function agencyConfirmLogout(){
   var m=document.getElementById('modal-del'); if(!m){portalLogout();return;}
   var _el_5=document.getElementById('modal-del-title'); if(_el_5) _el_5.textContent='Sign Out';
   var _el_6=document.getElementById('modal-del-text'); if(_el_6) _el_6.textContent='Are you sure you want to sign out?';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   var acts=document.getElementById('modal-del-actions'); acts.innerHTML='';
   var cb=document.createElement('button'); cb.className='btn btn-ghost'; cb.textContent='Cancel';
   cb.onclick=function(){closeModal('modal-del');}; acts.appendChild(cb);
@@ -3609,8 +3615,8 @@ function agencyConfirmLogout(){
   var m=document.getElementById('modal-del');if(!m){portalLogout();return;}
   var _el_7=document.getElementById('modal-del-title'); if(_el_7) _el_7.textContent='Sign Out';
   var _el_8=document.getElementById('modal-del-text'); if(_el_8) _el_8.textContent='Sign out of Agency Portal?';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
   var acts=document.getElementById('modal-del-actions');acts.style.display='flex';acts.innerHTML='';
   var cb=document.createElement('button');cb.className='btn btn-ghost';cb.textContent='Cancel';cb.onclick=function(){closeModal('modal-del');};acts.appendChild(cb);
   var sb=document.createElement('button');sb.style.cssText='background:#ff4d6d;color:#fff;border:none;padding:10px 20px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;';sb.textContent='Sign Out';sb.onclick=function(){closeModal('modal-del');portalLogout();};acts.appendChild(sb);
@@ -4709,12 +4715,12 @@ function fRenderTrash(){
 function fTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; F.trashSelIds.has(idx)?F.trashSelIds.delete(idx):F.trashSelIds.add(idx); fRenderTrash(); }
 function fToggleTrashAll(v){ F.trashSelIds.clear(); if(v) F.trash.forEach(function(_,i){ F.trashSelIds.add(i); }); fRenderTrash(); }
 function fUpdateTrashUI(){ var n=F.trashSelIds.size,i=document.getElementById('f-trash-sel-info'),b=document.getElementById('f-recover-btn'),c=document.getElementById('f-trash-select-all'); if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); } if(b) b.disabled=!n; if(c) c.checked=F.trash.length>0&&n===F.trash.length; if(c) c.indeterminate=n>0&&n<F.trash.length; }
-function fOpenDeleteModal(){ var n=F.selIds.size; var _el_19=document.getElementById('modal-del-text'); if(_el_19) _el_19.textContent='Delete '+n+' field'+(n>1?'s':'')+'? Saved to trash for '+EXPIRY+' days.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=fDoDelete; openModal('modal-del'); }
+function fOpenDeleteModal(){ var n=F.selIds.size; var _el_19=document.getElementById('modal-del-text'); if(_el_19) _el_19.textContent='Delete '+n+' field'+(n>1?'s':'')+'? Saved to trash for '+EXPIRY+' days.'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-del-confirm')||{}).onclick=fDoDelete; openModal('modal-del'); }
 async function fDoDelete(){
   var k=apiKey(),l=locId(),ids=[...F.selIds],tot=ids.length,dat=Date.now();
-  document.getElementById('modal-del-actions').style.display='none'; document.getElementById('modal-del-prog-wrap').style.display='block'; document.getElementById('modal-del-prog-label').style.display='block'; var _el_20=document.getElementById('modal-del-text'); if(_el_20) _el_20.textContent='Deleting '+tot+' fields...';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block'; var _el_20=document.getElementById('modal-del-text'); if(_el_20) _el_20.textContent='Deleting '+tot+' fields...';
   var done=0,fail=0;
-  for(var i=0;i<ids.length;i++){ var id=ids[i],fi=F.all.find(function(f){ return f.id===id; }); try{ var r=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customFields/'+id,{method:'DELETE',headers:gH()}); if(!r.ok) throw new Error('HTTP '+r.status); if(fi) F.trash.push({field:fi,deletedAt:dat}); done++; }catch(e){ fail++; } document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_21=document.getElementById('modal-del-prog-label'); if(_el_21) _el_21.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
+  for(var i=0;i<ids.length;i++){ var id=ids[i],fi=F.all.find(function(f){ return f.id===id; }); try{ var r=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customFields/'+id,{method:'DELETE',headers:gH()}); if(!r.ok) throw new Error('HTTP '+r.status); if(fi) F.trash.push({field:fi,deletedAt:dat}); done++; }catch(e){ fail++; } (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_21=document.getElementById('modal-del-prog-label'); if(_el_21) _el_21.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
   saveTrash(F_TRASH_KEY,F.trash); closeModal('modal-del'); F.selIds.clear(); await loadFields(); fUpdateStats(); fRenderTrash();
   toast(fail?'?? '+done+' deleted, '+fail+' failed':'? '+done+' field'+(done>1?'s':'')+' deleted.',fail?'warning':'success');
 }
@@ -4886,12 +4892,12 @@ function vRenderTrash(){
 function vTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; V.trashSelIds.has(idx)?V.trashSelIds.delete(idx):V.trashSelIds.add(idx); vRenderTrash(); }
 function vToggleTrashAll(v){ V.trashSelIds.clear(); if(v) V.trash.forEach(function(_,i){ V.trashSelIds.add(i); }); vRenderTrash(); }
 function vUpdateTrashUI(){ var n=V.trashSelIds.size,i=document.getElementById('v-trash-sel-info'),b=document.getElementById('v-recover-btn'),c=document.getElementById('v-trash-select-all'); if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); } if(b) b.disabled=!n; if(c) c.checked=V.trash.length>0&&n===V.trash.length; if(c) c.indeterminate=n>0&&n<V.trash.length; }
-function vOpenDeleteModal(){ var n=V.selIds.size; var _el_37=document.getElementById('modal-del-text'); if(_el_37) _el_37.textContent='Delete '+n+' value'+(n>1?'s':'')+'? Saved to trash.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=vDoDelete; openModal('modal-del'); }
+function vOpenDeleteModal(){ var n=V.selIds.size; var _el_37=document.getElementById('modal-del-text'); if(_el_37) _el_37.textContent='Delete '+n+' value'+(n>1?'s':'')+'? Saved to trash.'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-del-confirm')||{}).onclick=vDoDelete; openModal('modal-del'); }
 async function vDoDelete(){
   var k=apiKey(),l=locId(),ids=[...V.selIds],tot=ids.length,dat=Date.now();
-  document.getElementById('modal-del-actions').style.display='none'; document.getElementById('modal-del-prog-wrap').style.display='block'; document.getElementById('modal-del-prog-label').style.display='block'; var _el_38=document.getElementById('modal-del-text'); if(_el_38) _el_38.textContent='Deleting...';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block'; var _el_38=document.getElementById('modal-del-text'); if(_el_38) _el_38.textContent='Deleting...';
   var done=0,fail=0;
-  for(var i=0;i<ids.length;i++){ var id=ids[i],vi=V.all.find(function(x){ return x.id===id; }); try{ var r=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues/'+id,{method:'DELETE',headers:gH()}); if(!r.ok) throw new Error(); if(vi) V.trash.push({value:vi,deletedAt:dat}); done++; }catch(e){ fail++; } document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_39=document.getElementById('modal-del-prog-label'); if(_el_39) _el_39.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
+  for(var i=0;i<ids.length;i++){ var id=ids[i],vi=V.all.find(function(x){ return x.id===id; }); try{ var r=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues/'+id,{method:'DELETE',headers:gH()}); if(!r.ok) throw new Error(); if(vi) V.trash.push({value:vi,deletedAt:dat}); done++; }catch(e){ fail++; } (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_39=document.getElementById('modal-del-prog-label'); if(_el_39) _el_39.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
   saveTrash(V_TRASH_KEY,V.trash); closeModal('modal-del'); V.selIds.clear(); await loadValues(); vUpdateStats(); vRenderTrash();
   toast(fail?'?? '+done+' deleted, '+fail+' failed':'? '+done+' value'+(done>1?'s':'')+' deleted.',fail?'warning':'success');
 }
@@ -4951,13 +4957,13 @@ function vfUpdateUI(){
 }function vfTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; VF.trashSelIds.has(idx)?VF.trashSelIds.delete(idx):VF.trashSelIds.add(idx); vfRenderTrash(); }
 function vfToggleTrashAll(v){ VF.trashSelIds.clear(); if(v) VF.trash.forEach(function(_,i){ VF.trashSelIds.add(i); }); vfRenderTrash(); }
 function vfUpdateTrashUI(){ var n=VF.trashSelIds.size,i=document.getElementById('vf-trash-sel-info'),b=document.getElementById('vf-recover-btn'),c=document.getElementById('vf-trash-select-all'); if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); } if(b) b.disabled=!n; if(c) c.checked=VF.trash.length>0&&n===VF.trash.length; if(c) c.indeterminate=n>0&&n<VF.trash.length; }
-function vfOpenDeleteModal(){ var n=VF.selIds.size,tot=[...VF.selIds].reduce(function(a,id){ var f=VF.all.find(function(x){ return x.id===id; }); return a+(f?f.valueCount:0); },0); var _el_46=document.getElementById('modal-del-text'); if(_el_46) _el_46.textContent='Delete '+n+' folder'+(n>1?'s':'')+'?'+(tot?' Also deletes '+tot+' values.':'')+' Saved to trash.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=vfDoDelete; openModal('modal-del'); }
+function vfOpenDeleteModal(){ var n=VF.selIds.size,tot=[...VF.selIds].reduce(function(a,id){ var f=VF.all.find(function(x){ return x.id===id; }); return a+(f?f.valueCount:0); },0); var _el_46=document.getElementById('modal-del-text'); if(_el_46) _el_46.textContent='Delete '+n+' folder'+(n>1?'s':'')+'?'+(tot?' Also deletes '+tot+' values.':'')+' Saved to trash.'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-del-confirm')||{}).onclick=vfDoDelete; openModal('modal-del'); }
 async function vfDoDelete(){
   var k=apiKey(),l=locId(),ids=[...VF.selIds],tot=ids.length,dat=Date.now();
-  document.getElementById('modal-del-actions').style.display='none'; document.getElementById('modal-del-prog-wrap').style.display='block'; document.getElementById('modal-del-prog-label').style.display='block'; var _el_47=document.getElementById('modal-del-text'); if(_el_47) _el_47.textContent='Deleting...';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block'; var _el_47=document.getElementById('modal-del-text'); if(_el_47) _el_47.textContent='Deleting...';
   var done=0,fail=0,freshV=[];
   try{ var rf=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues',{headers:gH()}); if(rf.ok){ var df=await rf.json(); freshV=df.customValues||[]; } }catch(e){}
-  for(var i=0;i<ids.length;i++){ var id=ids[i],folder=VF.all.find(function(f){ return f.id===id; }); try{ var ins=freshV.filter(function(v){ return v.parentId===id; }); for(var j=0;j<ins.length;j++){ await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues/'+ins[j].id,{method:'DELETE',headers:gH()}); await new Promise(function(r){ setTimeout(r,150); }); } var dr=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues/'+id,{method:'DELETE',headers:gH()}); if(!dr.ok&&dr.status!==204) throw new Error(); if(folder) VF.trash.push({folder:folder,deletedAt:dat}); done++; }catch(e){ fail++; } document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_48=document.getElementById('modal-del-prog-label'); if(_el_48) _el_48.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
+  for(var i=0;i<ids.length;i++){ var id=ids[i],folder=VF.all.find(function(f){ return f.id===id; }); try{ var ins=freshV.filter(function(v){ return v.parentId===id; }); for(var j=0;j<ins.length;j++){ await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues/'+ins[j].id,{method:'DELETE',headers:gH()}); await new Promise(function(r){ setTimeout(r,150); }); } var dr=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues/'+id,{method:'DELETE',headers:gH()}); if(!dr.ok&&dr.status!==204) throw new Error(); if(folder) VF.trash.push({folder:folder,deletedAt:dat}); done++; }catch(e){ fail++; } (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_48=document.getElementById('modal-del-prog-label'); if(_el_48) _el_48.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
   saveTrash(VF_TRASH_KEY,VF.trash); closeModal('modal-del'); VF.selIds.clear(); await loadVFolders(); vfUpdateStats(); vfRenderTrash();
   toast(fail?'?? '+done+' deleted, '+fail+' failed':'? '+done+' folder'+(done>1?'s':'')+' deleted.',fail?'warning':'success');
 }
@@ -5020,12 +5026,12 @@ function calUpdateUI(){
 }function calTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; CAL.trashSelIds.has(idx)?CAL.trashSelIds.delete(idx):CAL.trashSelIds.add(idx); calRenderTrash(); }
 function calTrashSelAll(v){ CAL.trashSelIds.clear(); if(v) CAL.trash.forEach(function(_,i){ CAL.trashSelIds.add(i); }); calRenderTrash(); }
 function calUpdateTrashUI(){ var n=CAL.trashSelIds.size,i=document.getElementById('cal-trash-sel-info'),b=document.getElementById('cal-recover-btn'),c=document.getElementById('cal-trash-select-all'); if(i) i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); if(b) b.disabled=!n; if(c) c.checked=CAL.trash.length>0&&n===CAL.trash.length; if(c) c.indeterminate=n>0&&n<CAL.trash.length; }
-function calOpenDel(){ var n=CAL.selIds.size; var _el_59=document.getElementById('modal-del-text'); if(_el_59) _el_59.textContent='Delete '+n+' calendar'+(n>1?'s':'')+'? Saved to trash for '+EXPIRY+' days.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=calDoDelete; openModal('modal-del'); }
+function calOpenDel(){ var n=CAL.selIds.size; var _el_59=document.getElementById('modal-del-text'); if(_el_59) _el_59.textContent='Delete '+n+' calendar'+(n>1?'s':'')+'? Saved to trash for '+EXPIRY+' days.'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-del-confirm')||{}).onclick=calDoDelete; openModal('modal-del'); }
 async function calDoDelete(){
   var k=apiKey(),l=locId(),ids=[...CAL.selIds],tot=ids.length,dat=Date.now();
-  document.getElementById('modal-del-actions').style.display='none'; document.getElementById('modal-del-prog-wrap').style.display='block'; document.getElementById('modal-del-prog-label').style.display='block'; document.getElementById('modal-del-text').textContent='Deleting '+tot+' calendar'+(tot>1?'s':'')+'...';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block'; document.getElementById('modal-del-text').textContent='Deleting '+tot+' calendar'+(tot>1?'s':'')+'...';
   var done=0,fail=0;
-  for(var i=0;i<ids.length;i++){ var id=ids[i],cal=CAL.all.find(function(c){ return c.id===id; }); try{ var r=await fetch('https://services.leadconnectorhq.com/calendars/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+k,'Version':VER}}); if(!r.ok) throw new Error('HTTP '+r.status); if(cal) CAL.trash.push({calendar:cal,deletedAt:dat}); done++; }catch(e){ fail++; } document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_60=document.getElementById('modal-del-prog-label'); if(_el_60) _el_60.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,350); }); }
+  for(var i=0;i<ids.length;i++){ var id=ids[i],cal=CAL.all.find(function(c){ return c.id===id; }); try{ var r=await fetch('https://services.leadconnectorhq.com/calendars/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+k,'Version':VER}}); if(!r.ok) throw new Error('HTTP '+r.status); if(cal) CAL.trash.push({calendar:cal,deletedAt:dat}); done++; }catch(e){ fail++; } (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_60=document.getElementById('modal-del-prog-label'); if(_el_60) _el_60.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,350); }); }
   saveTrash(CAL_TRASH_KEY,CAL.trash); closeModal('modal-del'); CAL.selIds.clear(); await loadCalendars(); calUpdateStats(); calRenderTrash();
   toast(fail?'?? '+done+' deleted, '+fail+' failed':'? '+done+' calendar'+(done>1?'s':'')+' deleted.',fail?'warning':'success');
 }
@@ -5340,10 +5346,10 @@ function apptEditStatus(id, currentStatus){
   }).join('');
   document.getElementById('modal-del-text').innerHTML='Change appointment status:<br><br>'
     +'<select id="appt-status-edit-sel" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;padding:10px 12px;outline:none;margin-top:4px;">'+opts+'</select>';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
   window._apptEditId=id;
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   document.getElementById('modal-del-actions').innerHTML='<button class="btn btn-ghost" onclick="closeModal(this.dataset.m)" data-m="modal-del">Cancel</button> <button class="btn btn-f" onclick="apptDoEditStatus(window._apptEditId)">Save Status</button>';
 
 
@@ -5370,9 +5376,9 @@ async function apptDoEditStatus(id){
 function apptOpenDel(){
   var n=APPT.selIds.size;
   var _el_68=document.getElementById('modal-del-text'); if(_el_68) _el_68.textContent='Permanently delete '+n+' appointment'+(n>1?'s':'')+'? This cannot be undone.';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   document.getElementById('modal-del-actions').innerHTML='<button class="btn btn-ghost" onclick="closeModal(this.dataset.m)" data-m="modal-del">Cancel</button> <button class="btn btn-danger" onclick="apptDoDelete()">Yes, Delete</button>';
 
 
@@ -5382,8 +5388,8 @@ function apptOpenDel(){
 async function apptDoDelete(){
   var conn=apptGetConn(), k=conn.k, ids=[...APPT.selIds], tot=ids.length;
   document.getElementById('modal-del-actions').innerHTML='';
-  document.getElementById('modal-del-prog-wrap').style.display='block';
-  document.getElementById('modal-del-prog-label').style.display='block';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block';
   var _el_69=document.getElementById('modal-del-text'); if(_el_69) _el_69.textContent='Deleting '+tot+' appointment'+(tot>1?'s':'')+'...';
   var done=0,fail=0;
   for(var i=0;i<ids.length;i++){
@@ -5393,7 +5399,7 @@ async function apptDoDelete(){
       if(!r.ok) throw new Error('HTTP '+r.status);
       done++;
     }catch(e){ fail++; }
-    document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
     var _el_70=document.getElementById('modal-del-prog-label'); if(_el_70) _el_70.textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,250); });
   }
@@ -5561,9 +5567,9 @@ function invUpdateUI(){
 function invOpenDel(){
   var n=INV.selIds.size;
   var _el_77=document.getElementById('modal-del-text'); if(_el_77) _el_77.textContent='Permanently delete '+n+' invoice'+(n>1?'s':'')+'? This cannot be undone.';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   var acts=document.getElementById('modal-del-actions');
   acts.innerHTML='';
   var cb=document.createElement('button'); cb.className='btn btn-ghost'; cb.textContent='Cancel'; cb.onclick=function(){ closeModal('modal-del'); }; acts.appendChild(cb);
@@ -5574,8 +5580,8 @@ function invOpenDel(){
 async function invDoDelete(){
   var k=apiKey(), ids=[...INV.selIds], tot=ids.length;
   document.getElementById('modal-del-actions').innerHTML='';
-  document.getElementById('modal-del-prog-wrap').style.display='block';
-  document.getElementById('modal-del-prog-label').style.display='block';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block';
   var _el_78=document.getElementById('modal-del-text'); if(_el_78) _el_78.textContent='Deleting '+tot+' invoice'+(tot>1?'s':'')+'...';
   var done=0, fail=0;
   var h={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
@@ -5597,7 +5603,7 @@ async function invDoDelete(){
       }
       done++;
     }catch(e){ fail++; console.error('[InvDelete]',ids[i],e.message); }
-    document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
     var _el_79=document.getElementById('modal-del-prog-label'); if(_el_79) _el_79.textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,300); });
   }
@@ -5791,9 +5797,9 @@ function docsUpdateUI(){
 function docsOpenDel(){
   var n=DOCS.selIds.size;
   var _el_86=document.getElementById('modal-del-text'); if(_el_86) _el_86.textContent='Permanently delete '+n+' document'+(n>1?'s':'')+'? This cannot be undone.';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   // Safe button HTML using DOM methods - no nested quotes at all
   var acts=document.getElementById('modal-del-actions');
   acts.innerHTML='';
@@ -5814,8 +5820,8 @@ async function docsDoDelete(){
   var k=apiKey(), ids=[...DOCS.selIds], tot=ids.length;
   var acts=document.getElementById('modal-del-actions');
   acts.innerHTML='';
-  document.getElementById('modal-del-prog-wrap').style.display='block';
-  document.getElementById('modal-del-prog-label').style.display='block';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block';
   var _el_87=document.getElementById('modal-del-text'); if(_el_87) _el_87.textContent='Deleting '+tot+' document'+(tot>1?'s':'')+'...';
   var done=0, fail=0;
   var h={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
@@ -5827,7 +5833,7 @@ async function docsDoDelete(){
       if(!r.ok) throw new Error('HTTP '+r.status);
       done++;
     }catch(err){ console.error('[DocDelete err]',err.message); fail++; }
-    document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
     var _el_88=document.getElementById('modal-del-prog-label'); if(_el_88) _el_88.textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,300); });
   }
@@ -6021,9 +6027,9 @@ function ordUpdateUI(){
 function ordOpenDel(){
   var n=ORD.selIds.size;
   var _el_94=document.getElementById('modal-del-text'); if(_el_94) _el_94.textContent='Permanently delete '+n+' order'+(n>1?'s':'')+'? This cannot be undone.';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   var acts=document.getElementById('modal-del-actions');
   acts.innerHTML='';
   var cb=document.createElement('button');
@@ -6043,8 +6049,8 @@ async function ordDoDelete(){
   var k=apiKey(), l=locId(), ids=[...ORD.selIds], tot=ids.length;
   var acts=document.getElementById('modal-del-actions');
   acts.innerHTML='';
-  document.getElementById('modal-del-prog-wrap').style.display='block';
-  document.getElementById('modal-del-prog-label').style.display='block';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block';
   var _el_95=document.getElementById('modal-del-text'); if(_el_95) _el_95.textContent='Deleting '+tot+' order'+(tot>1?'s':'')+'...';
   var done=0, fail=0;
   var h={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
@@ -6057,7 +6063,7 @@ async function ordDoDelete(){
       if(!r.ok) throw new Error('HTTP '+r.status);
       done++;
     }catch(err){ console.error('[OrdDelete err]',err.message); fail++; }
-    document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
     var _el_96=document.getElementById('modal-del-prog-label'); if(_el_96) _el_96.textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,300); });
   }
@@ -6311,9 +6317,9 @@ function prodUpdateUI(){
 function prodOpenDel(){
   var n=PROD.selIds.size;
   var _el_102=document.getElementById('modal-del-text'); if(_el_102) _el_102.textContent='Permanently delete '+n+' product'+(n>1?'s':'')+'? This cannot be undone.';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   var acts=document.getElementById('modal-del-actions');
   acts.innerHTML='';
   var cb=document.createElement('button');
@@ -6330,8 +6336,8 @@ async function prodDoDelete(){
   var k=apiKey(), ids=[...PROD.selIds], tot=ids.length;
   var acts=document.getElementById('modal-del-actions');
   acts.innerHTML='';
-  document.getElementById('modal-del-prog-wrap').style.display='block';
-  document.getElementById('modal-del-prog-label').style.display='block';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block';
   var _el_103=document.getElementById('modal-del-text'); if(_el_103) _el_103.textContent='Deleting '+tot+' product'+(tot>1?'s':'')+'...';
   var done=0, fail=0;
   var h={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
@@ -6343,7 +6349,7 @@ async function prodDoDelete(){
       if(!r.ok) throw new Error('HTTP '+r.status+': '+raw.slice(0,60));
       done++;
     }catch(err){ console.error('[ProdDelete err]',err.message); fail++; }
-    document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
     var _el_104=document.getElementById('modal-del-prog-label'); if(_el_104) _el_104.textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,250); });
   }
@@ -6436,9 +6442,9 @@ function tagsUpdateUI(){
 function tagsOpenDel(){
   var n=TAGS.selIds.size;
   var _el_108=document.getElementById('modal-del-text'); if(_el_108) _el_108.textContent='Permanently delete '+n+' tag'+(n>1?'s':'')+'? This cannot be undone.';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   var acts=document.getElementById('modal-del-actions'); acts.innerHTML='';
   var cb=document.createElement('button'); cb.className='btn btn-ghost'; cb.textContent='Cancel'; cb.onclick=function(){ closeModal('modal-del'); }; acts.appendChild(cb);
   var db=document.createElement('button'); db.className='btn btn-danger'; db.textContent='Yes, Delete'; db.onclick=tagsDoDelete; acts.appendChild(db);
@@ -6447,7 +6453,7 @@ function tagsOpenDel(){
 async function tagsDoDelete(){
   var k=apiKey(), l=locId(), ids=[...TAGS.selIds], tot=ids.length;
   document.getElementById('modal-del-actions').innerHTML='';
-  document.getElementById('modal-del-prog-wrap').style.display='block'; document.getElementById('modal-del-prog-label').style.display='block';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block';
   var _el_109=document.getElementById('modal-del-text'); if(_el_109) _el_109.textContent='Deleting '+tot+' tag'+(tot>1?'s':'')+'...';
   var done=0, fail=0; var h={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
   for(var i=0;i<ids.length;i++){
@@ -6457,7 +6463,7 @@ async function tagsDoDelete(){
       if(!r.ok) throw new Error('HTTP '+r.status);
       done++;
     }catch(err){ console.error('[TagsDelete]',err.message); fail++; }
-    document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
     var _el_110=document.getElementById('modal-del-prog-label'); if(_el_110) _el_110.textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,200); });
   }
@@ -6735,9 +6741,9 @@ function emplUpdateUI(){
 function emplOpenDel(){
   var n=ETEMPL.selIds.size;
   var _el_120=document.getElementById('modal-del-text'); if(_el_120) _el_120.textContent='Permanently delete '+n+' template'+(n>1?'s':'')+'? This cannot be undone.';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   var acts=document.getElementById('modal-del-actions');
   acts.innerHTML='';
   var cb=document.createElement('button');
@@ -6752,8 +6758,8 @@ function emplOpenDel(){
 async function emplDoDelete(){
   var k=apiKey(), l=locId(), ids=[...ETEMPL.selIds], tot=ids.length;
   document.getElementById('modal-del-actions').innerHTML='';
-  document.getElementById('modal-del-prog-wrap').style.display='block';
-  document.getElementById('modal-del-prog-label').style.display='block';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block';
   var _el_121=document.getElementById('modal-del-text'); if(_el_121) _el_121.textContent='Deleting '+tot+' template'+(tot>1?'s':'')+'...';
   var done=0, fail=0;
   var h={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
@@ -6765,7 +6771,7 @@ async function emplDoDelete(){
       if(!r.ok) throw new Error('HTTP '+r.status);
       done++;
     }catch(err){ console.error('[ETemplDelete]',err.message); fail++; }
-    document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
     var _el_122=document.getElementById('modal-del-prog-label'); if(_el_122) _el_122.textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,250); });
   }
@@ -6928,9 +6934,9 @@ function fnUpdateUI(){
 function fnOpenDel(){
   var n=FN.selIds.size;
   var _el_129=document.getElementById('modal-del-text'); if(_el_129) _el_129.textContent='Delete '+n+' funnel'+(n>1?'s':'')+'? They will be saved to Trash for 10 days.';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   var acts=document.getElementById('modal-del-actions'); acts.innerHTML='';
   var cb=document.createElement('button'); cb.className='btn btn-ghost'; cb.textContent='Cancel'; cb.onclick=function(){ closeModal('modal-del'); }; acts.appendChild(cb);
   var db=document.createElement('button'); db.className='btn btn-danger'; db.textContent='Yes, Delete'; db.onclick=fnDoDelete; acts.appendChild(db);
@@ -6940,8 +6946,8 @@ function fnOpenDel(){
 async function fnDoDelete(){
   var k=apiKey(), ids=[...FN.selIds], tot=ids.length, dat=Date.now();
   document.getElementById('modal-del-actions').innerHTML='';
-  document.getElementById('modal-del-prog-wrap').style.display='block';
-  document.getElementById('modal-del-prog-label').style.display='block';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block';
   var _el_130=document.getElementById('modal-del-text'); if(_el_130) _el_130.textContent='Deleting '+tot+' funnel'+(tot>1?'s':'')+'...';
   var done=0, fail=0; var h={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
   for(var i=0;i<ids.length;i++){
@@ -6966,7 +6972,7 @@ async function fnDoDelete(){
       if(fn2) FN.trash.push({funnel:fn2, deletedAt:dat});
       done++;
     }catch(err){ console.error('[FNDelete]',err.message); fail++; }
-    document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
     var _el_131=document.getElementById('modal-del-prog-label'); if(_el_131) _el_131.textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,300); });
   }
@@ -7196,9 +7202,9 @@ function fnDeletePagesInline(funnelId){
   var state=FN_INLINE_PAGES[funnelId]; if(!state||!state.selIds.size) return;
   var n=state.selIds.size;
   var _el_135=document.getElementById('modal-del-text'); if(_el_135) _el_135.textContent='Permanently delete '+n+' page'+(n>1?'s':'')+'? This cannot be undone.';
-  document.getElementById('modal-del-prog-wrap').style.display='none';
-  document.getElementById('modal-del-prog-label').style.display='none';
-  document.getElementById('modal-del-actions').style.display='flex';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex';
   var acts=document.getElementById('modal-del-actions'); acts.innerHTML='';
   var cb=document.createElement('button'); cb.className='btn btn-ghost'; cb.textContent='Cancel'; cb.onclick=function(){ closeModal('modal-del'); }; acts.appendChild(cb);
   var db=document.createElement('button'); db.className='btn btn-danger'; db.textContent='Yes, Delete';
@@ -7210,8 +7216,8 @@ async function fnDoDeletePagesInline(funnelId){
   var k=apiKey(), state=FN_INLINE_PAGES[funnelId];
   var ids=[...state.selIds], tot=ids.length;
   document.getElementById('modal-del-actions').innerHTML='';
-  document.getElementById('modal-del-prog-wrap').style.display='block';
-  document.getElementById('modal-del-prog-label').style.display='block';
+  (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block';
+  (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block';
   var _el_136=document.getElementById('modal-del-text'); if(_el_136) _el_136.textContent='Deleting '+tot+' page'+(tot>1?'s':'')+'...';
   var done=0, fail=0; var h={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
   for(var i=0;i<ids.length;i++){
@@ -7219,7 +7225,7 @@ async function fnDoDeletePagesInline(funnelId){
       var r=await fetch('https://services.leadconnectorhq.com/funnels/page/'+ids[i],{method:'DELETE',headers:h});
       if(!r.ok) throw new Error('HTTP '+r.status); done++;
     }catch(err){ fail++; }
-    document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-del-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
     var _el_137=document.getElementById('modal-del-prog-label'); if(_el_137) _el_137.textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,250); });
   }
@@ -7250,6 +7256,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
 
 
 
