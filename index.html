@@ -3119,6 +3119,10 @@
 
 
 
+
+
+
+
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 
@@ -4665,6 +4669,8 @@ function fRender(){
 function fRowClick(row){ var id=row.getAttribute('data-id'); if(!id) return; F.selIds.has(id)?F.selIds.delete(id):F.selIds.add(id); fRender(); }
 function fToggleAll(v){ F.selIds.clear(); if(v) F.filtered.forEach(function(f){ F.selIds.add(f.id); }); fRender(); }
 function fUpdateUI(){
+  if(!document.getElementById('f-sel-info')) return;
+
   var n=F.selIds.size;
   var i=document.getElementById('f-sel-info');
   var b=document.getElementById('f-del-btn');
@@ -4687,7 +4693,7 @@ function fRenderTrash(){
 }
 function fTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; F.trashSelIds.has(idx)?F.trashSelIds.delete(idx):F.trashSelIds.add(idx); fRenderTrash(); }
 function fToggleTrashAll(v){ F.trashSelIds.clear(); if(v) F.trash.forEach(function(_,i){ F.trashSelIds.add(i); }); fRenderTrash(); }
-function fUpdateTrashUI(){ var n=F.trashSelIds.size,i=document.getElementById('f-trash-sel-info'),b=document.getElementById('f-recover-btn'),c=document.getElementById('f-trash-select-all'); if(i) i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); if(b) b.disabled=!n; if(c) c.checked=F.trash.length>0&&n===F.trash.length; if(c) c.indeterminate=n>0&&n<F.trash.length; }
+function fUpdateTrashUI(){ var n=F.trashSelIds.size,i=document.getElementById('f-trash-sel-info'),b=document.getElementById('f-recover-btn'),c=document.getElementById('f-trash-select-all'); if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); } if(b) b.disabled=!n; if(c) c.checked=F.trash.length>0&&n===F.trash.length; if(c) c.indeterminate=n>0&&n<F.trash.length; }
 function fOpenDeleteModal(){ var n=F.selIds.size; var _el_19=document.getElementById('modal-del-text'); if(_el_19) _el_19.textContent='Delete '+n+' field'+(n>1?'s':'')+'? Saved to trash for '+EXPIRY+' days.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=fDoDelete; openModal('modal-del'); }
 async function fDoDelete(){
   var k=apiKey(),l=locId(),ids=[...F.selIds],tot=ids.length,dat=Date.now();
@@ -4793,16 +4799,15 @@ function dUpdateUI(){
   }
 }function dTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; D.trashSelIds.has(idx)?D.trashSelIds.delete(idx):D.trashSelIds.add(idx); dRenderTrash(); }
 function dToggleTrashAll(v){ D.trashSelIds.clear(); if(v) D.trash.forEach(function(_,i){ D.trashSelIds.add(i); }); dRenderTrash(); }
-function dUpdateTrashUI(){ var n=D.trashSelIds.size,i=document.getElementById('d-trash-sel-info'),b=document.getElementById('d-recover-btn'),c=document.getElementById('d-trash-select-all'); if(i) i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); if(b) b.disabled=!n; if(c) c.checked=D.trash.length>0&&n===D.trash.length; if(c) c.indeterminate=n>0&&n<D.trash.length; }
-function dOpenDeleteModal(){ var n=D.selIds.size,tot=[...D.selIds].reduce(function(a,id){ var f=D.all.find(function(x){ return x.id===id; }); return a+(f?f.fieldCount:0); },0); var _el_27=document.getElementById('modal-del-text'); if(_el_27) _el_27.textContent='Delete '+n+' folder'+(n>1?'s':'')+'?'+(tot?' Also deletes '+tot+' fields.':'')+' Saved to trash.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=dDoDelete; openModal('modal-del'); }
-async function dDoDelete(){
-  var k=apiKey(),l=locId(),ids=[...D.selIds],tot=ids.length,dat=Date.now();
-  document.getElementById('modal-del-actions').style.display='none'; document.getElementById('modal-del-prog-wrap').style.display='block'; document.getElementById('modal-del-prog-label').style.display='block'; var _el_28=document.getElementById('modal-del-text'); if(_el_28) _el_28.textContent='Deleting...';
-  var done=0,fail=0,freshF=[];
-  try{ var rf=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customFields',{headers:gH()}); if(rf.ok){ var df=await rf.json(); freshF=df.customFields||[]; } }catch(e){}
-  for(var i=0;i<ids.length;i++){ var id=ids[i],folder=D.all.find(function(f){ return f.id===id; }); try{ var ins=freshF.filter(function(f){ return f.parentId===id; }); for(var j=0;j<ins.length;j++){ await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customFields/'+ins[j].id,{method:'DELETE',headers:gH()}); await new Promise(function(r){ setTimeout(r,150); }); } var dr=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customFields/'+id,{method:'DELETE',headers:gH()}); if(!dr.ok&&dr.status!==204) throw new Error('HTTP '+dr.status); if(folder) D.trash.push({folder:folder,deletedAt:dat}); done++; }catch(e){ fail++; } document.getElementById('modal-del-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_29=document.getElementById('modal-del-prog-label'); if(_el_29) _el_29.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
-  saveTrash(D_TRASH_KEY,D.trash); closeModal('modal-del'); D.selIds.clear(); await loadFolders(); dUpdateStats(); dRenderTrash();
-  toast(fail?'?? '+done+' deleted, '+fail+' failed':'? '+done+' folder'+(done>1?'s':'')+' deleted.',fail?'warning':'success');
+function dUpdateTrashUI(){
+  var n=D.trashSelIds.size;
+  var i=document.getElementById('d-trash-sel-info');
+  var b=document.getElementById('d-recover-btn');
+  var c=document.getElementById('d-trash-select-all');
+  if(!i) return;
+  if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); }
+  if(b) b.disabled=!n;
+  if(c){ c.checked=D.trash.length>0&&n===D.trash.length; c.indeterminate=n>0&&n<D.trash.length; }
 }
 function dOpenRecoverModal(){ var n=D.trashSelIds.size; var _el_30=document.getElementById('modal-rec-text'); if(_el_30) _el_30.textContent='Recover '+n+' folder'+(n>1?'s':'')+' (empty)?'; document.getElementById('modal-rec-prog-wrap').style.display='none'; document.getElementById('modal-rec-prog-label').style.display='none'; document.getElementById('modal-rec-actions').style.display='flex'; document.getElementById('modal-rec-confirm').onclick=dDoRecover; openModal('modal-rec'); }
 async function dDoRecover(){
@@ -4865,7 +4870,7 @@ function vRenderTrash(){
 }
 function vTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; V.trashSelIds.has(idx)?V.trashSelIds.delete(idx):V.trashSelIds.add(idx); vRenderTrash(); }
 function vToggleTrashAll(v){ V.trashSelIds.clear(); if(v) V.trash.forEach(function(_,i){ V.trashSelIds.add(i); }); vRenderTrash(); }
-function vUpdateTrashUI(){ var n=V.trashSelIds.size,i=document.getElementById('v-trash-sel-info'),b=document.getElementById('v-recover-btn'),c=document.getElementById('v-trash-select-all'); if(i) i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); if(b) b.disabled=!n; if(c) c.checked=V.trash.length>0&&n===V.trash.length; if(c) c.indeterminate=n>0&&n<V.trash.length; }
+function vUpdateTrashUI(){ var n=V.trashSelIds.size,i=document.getElementById('v-trash-sel-info'),b=document.getElementById('v-recover-btn'),c=document.getElementById('v-trash-select-all'); if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); } if(b) b.disabled=!n; if(c) c.checked=V.trash.length>0&&n===V.trash.length; if(c) c.indeterminate=n>0&&n<V.trash.length; }
 function vOpenDeleteModal(){ var n=V.selIds.size; var _el_37=document.getElementById('modal-del-text'); if(_el_37) _el_37.textContent='Delete '+n+' value'+(n>1?'s':'')+'? Saved to trash.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=vDoDelete; openModal('modal-del'); }
 async function vDoDelete(){
   var k=apiKey(),l=locId(),ids=[...V.selIds],tot=ids.length,dat=Date.now();
@@ -4930,7 +4935,7 @@ function vfUpdateUI(){
   }
 }function vfTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; VF.trashSelIds.has(idx)?VF.trashSelIds.delete(idx):VF.trashSelIds.add(idx); vfRenderTrash(); }
 function vfToggleTrashAll(v){ VF.trashSelIds.clear(); if(v) VF.trash.forEach(function(_,i){ VF.trashSelIds.add(i); }); vfRenderTrash(); }
-function vfUpdateTrashUI(){ var n=VF.trashSelIds.size,i=document.getElementById('vf-trash-sel-info'),b=document.getElementById('vf-recover-btn'),c=document.getElementById('vf-trash-select-all'); if(i) i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); if(b) b.disabled=!n; if(c) c.checked=VF.trash.length>0&&n===VF.trash.length; if(c) c.indeterminate=n>0&&n<VF.trash.length; }
+function vfUpdateTrashUI(){ var n=VF.trashSelIds.size,i=document.getElementById('vf-trash-sel-info'),b=document.getElementById('vf-recover-btn'),c=document.getElementById('vf-trash-select-all'); if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); } if(b) b.disabled=!n; if(c) c.checked=VF.trash.length>0&&n===VF.trash.length; if(c) c.indeterminate=n>0&&n<VF.trash.length; }
 function vfOpenDeleteModal(){ var n=VF.selIds.size,tot=[...VF.selIds].reduce(function(a,id){ var f=VF.all.find(function(x){ return x.id===id; }); return a+(f?f.valueCount:0); },0); var _el_46=document.getElementById('modal-del-text'); if(_el_46) _el_46.textContent='Delete '+n+' folder'+(n>1?'s':'')+'?'+(tot?' Also deletes '+tot+' values.':'')+' Saved to trash.'; document.getElementById('modal-del-prog-wrap').style.display='none'; document.getElementById('modal-del-prog-label').style.display='none'; document.getElementById('modal-del-actions').style.display='flex'; document.getElementById('modal-del-confirm').onclick=vfDoDelete; openModal('modal-del'); }
 async function vfDoDelete(){
   var k=apiKey(),l=locId(),ids=[...VF.selIds],tot=ids.length,dat=Date.now();
@@ -7230,6 +7235,10 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
+
+
+
 
 
 
