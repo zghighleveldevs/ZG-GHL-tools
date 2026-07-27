@@ -3156,6 +3156,8 @@
 <div id="toast" class="toast"></div>
 <script defer>
 
+
+
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 
@@ -3609,6 +3611,17 @@ function portalRestoreSession(){
   PORTAL.currentUser=user;
   if(user.role==='admin'){ showScreen('screen-agency-portal'); loadAgencyPortal(); return true; }
   showClientDashboard(); return true;
+}
+
+
+function resetDelModal(){
+  var acts = document.getElementById('modal-del-actions');
+  if(acts){
+    acts.innerHTML = '<button class="btn btn-ghost" onclick="closeModal(\x27modal-del\x27)">Cancel</button>'
+      + '<button class="btn btn-danger" id="modal-del-confirm">Delete</button>';
+  }
+  var title = document.getElementById('modal-del-title');
+  if(title) title.textContent = 'Confirm Deletion';
 }
 
 function agencyConfirmLogout(){
@@ -4736,7 +4749,7 @@ function fRenderTrash(){
 function fTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; F.trashSelIds.has(idx)?F.trashSelIds.delete(idx):F.trashSelIds.add(idx); fRenderTrash(); }
 function fToggleTrashAll(v){ F.trashSelIds.clear(); if(v) F.trash.forEach(function(_,i){ F.trashSelIds.add(i); }); fRenderTrash(); }
 function fUpdateTrashUI(){ var n=F.trashSelIds.size,i=document.getElementById('f-trash-sel-info'),b=document.getElementById('f-recover-btn'),c=document.getElementById('f-trash-select-all'); if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); } if(b) b.disabled=!n; if(c) c.checked=F.trash.length>0&&n===F.trash.length; if(c) c.indeterminate=n>0&&n<F.trash.length; }
-function fOpenDeleteModal(){ var n=F.selIds.size; var _el_19=document.getElementById('modal-del-text'); if(_el_19) _el_19.textContent='Delete '+n+' field'+(n>1?'s':'')+'? Saved to trash for '+EXPIRY+' days.'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-del-confirm')||{}).onclick=fDoDelete; openModal('modal-del'); }
+function fOpenDeleteModal(){ resetDelModal(); var n=F.selIds.size; var _el_19=document.getElementById('modal-del-text'); if(_el_19) _el_19.textContent='Delete '+n+' field'+(n>1?'s':'')+'? Saved to trash for '+EXPIRY+' days.'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-del-confirm')||{}).onclick=fDoDelete; openModal('modal-del'); }
 async function fDoDelete(){
   var k=apiKey(),l=locId(),ids=[...F.selIds],tot=ids.length,dat=Date.now();
   (document.getElementById('modal-del-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block'; var _el_20=document.getElementById('modal-del-text'); if(_el_20) _el_20.textContent='Deleting '+tot+' fields...';
@@ -4913,7 +4926,7 @@ function vRenderTrash(){
 function vTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; V.trashSelIds.has(idx)?V.trashSelIds.delete(idx):V.trashSelIds.add(idx); vRenderTrash(); }
 function vToggleTrashAll(v){ V.trashSelIds.clear(); if(v) V.trash.forEach(function(_,i){ V.trashSelIds.add(i); }); vRenderTrash(); }
 function vUpdateTrashUI(){ var n=V.trashSelIds.size,i=document.getElementById('v-trash-sel-info'),b=document.getElementById('v-recover-btn'),c=document.getElementById('v-trash-select-all'); if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); } if(b) b.disabled=!n; if(c) c.checked=V.trash.length>0&&n===V.trash.length; if(c) c.indeterminate=n>0&&n<V.trash.length; }
-function vOpenDeleteModal(){ var n=V.selIds.size; var _el_37=document.getElementById('modal-del-text'); if(_el_37) _el_37.textContent='Delete '+n+' value'+(n>1?'s':'')+'? Saved to trash.'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-del-confirm')||{}).onclick=vDoDelete; openModal('modal-del'); }
+function vOpenDeleteModal(){ resetDelModal(); var n=V.selIds.size; var _el_37=document.getElementById('modal-del-text'); if(_el_37) _el_37.textContent='Delete '+n+' value'+(n>1?'s':'')+'? Saved to trash.'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-del-confirm')||{}).onclick=vDoDelete; openModal('modal-del'); }
 async function vDoDelete(){
   var k=apiKey(),l=locId(),ids=[...V.selIds],tot=ids.length,dat=Date.now();
   (document.getElementById('modal-del-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block'; var _el_38=document.getElementById('modal-del-text'); if(_el_38) _el_38.textContent='Deleting...';
@@ -4978,7 +4991,7 @@ function vfUpdateUI(){
 }function vfTrashRowClick(row){ var idx=parseInt(row.getAttribute('data-idx')); if(isNaN(idx)) return; VF.trashSelIds.has(idx)?VF.trashSelIds.delete(idx):VF.trashSelIds.add(idx); vfRenderTrash(); }
 function vfToggleTrashAll(v){ VF.trashSelIds.clear(); if(v) VF.trash.forEach(function(_,i){ VF.trashSelIds.add(i); }); vfRenderTrash(); }
 function vfUpdateTrashUI(){ var n=VF.trashSelIds.size,i=document.getElementById('vf-trash-sel-info'),b=document.getElementById('vf-recover-btn'),c=document.getElementById('vf-trash-select-all'); if(i){ i.textContent=n?n+' selected':'0 selected'; i.className='selected-info'+(n?' sel-g':''); } if(b) b.disabled=!n; if(c) c.checked=VF.trash.length>0&&n===VF.trash.length; if(c) c.indeterminate=n>0&&n<VF.trash.length; }
-function vfOpenDeleteModal(){ var n=VF.selIds.size,tot=[...VF.selIds].reduce(function(a,id){ var f=VF.all.find(function(x){ return x.id===id; }); return a+(f?f.valueCount:0); },0); var _el_46=document.getElementById('modal-del-text'); if(_el_46) _el_46.textContent='Delete '+n+' folder'+(n>1?'s':'')+'?'+(tot?' Also deletes '+tot+' values.':'')+' Saved to trash.'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-del-confirm')||{}).onclick=vfDoDelete; openModal('modal-del'); }
+function vfOpenDeleteModal(){ resetDelModal(); var n=VF.selIds.size,tot=[...VF.selIds].reduce(function(a,id){ var f=VF.all.find(function(x){ return x.id===id; }); return a+(f?f.valueCount:0); },0); var _el_46=document.getElementById('modal-del-text'); if(_el_46) _el_46.textContent='Delete '+n+' folder'+(n>1?'s':'')+'?'+(tot?' Also deletes '+tot+' values.':'')+' Saved to trash.'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-del-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-del-confirm')||{}).onclick=vfDoDelete; openModal('modal-del'); }
 async function vfDoDelete(){
   var k=apiKey(),l=locId(),ids=[...VF.selIds],tot=ids.length,dat=Date.now();
   (document.getElementById('modal-del-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-del-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-del-prog-label')||{style:{}}).style.display='block'; var _el_47=document.getElementById('modal-del-text'); if(_el_47) _el_47.textContent='Deleting...';
@@ -7277,6 +7290,8 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
+
 
 </script>
 </body>
