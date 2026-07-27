@@ -3105,40 +3105,18 @@
       <div id="client-form-tools" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:240px;overflow-y:auto;"></div>
     </div><div id="client-form-error" style="display:none;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);color:#ff4d6d;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;"></div><div style="display:flex;gap:10px;justify-content:flex-end;"><button class="btn btn-ghost" onclick="closeModal('modal-client-form')">Cancel</button><button class="btn" style="background:linear-gradient(135deg,#6c63ff,#a855f7);color:#fff;font-weight:700;" onclick="agencySaveClient()">Save Client</button></div></div></div>
 
-<div class="modal-overlay" id="modal-del"><div class="modal">
-  <h2 class="c-danger" id="modal-del-title">Confirm Deletion</h2>
-  <p id="modal-del-text"></p>
-  <div class="progress-bar-wrap" id="modal-del-prog-wrap" style="display:none;">
-    <div class="progress-bar" id="modal-del-prog-bar"></div>
-  </div>
-  <p class="progress-label" id="modal-del-prog-label" style="display:none;"></p>
-  <div class="modal-actions" id="modal-del-actions" style="display:flex;">
-    <button class="btn btn-ghost" onclick="closeModal('modal-del')">Cancel</button>
-    <button class="btn btn-danger" id="modal-del-confirm">Delete</button>
-  </div>
-</div></div><div id="toast" class="toast"></div>
+<div class="modal-overlay" id="modal-rec">
+  <div class="modal">
+    <h2 class="c-success" id="modal-rec-title">&#8617; Recover Items</h2>
+    <p id="modal-rec-text"></p>
+    <div class="progress-bar-wrap" id="modal-rec-prog-wrap" style="display:none;">
+      <div class="progress-bar" id="modal-rec-prog-bar" style="background:var(--success);"></div>
+    </div>
+    <p class="progress-label" id="modal-rec-prog-label" style="display:none;"></p>
+    <div class="modal-actions" id="modal-rec-actions" style="display:flex;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-rec')">Cancel</button>
+      <button class="btn btn-success" id="modal-rec-confirm">&#8617; Recover</button>
 <script defer>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 
@@ -4724,10 +4702,10 @@ async function fDoDelete(){
   saveTrash(F_TRASH_KEY,F.trash); closeModal('modal-del'); F.selIds.clear(); await loadFields(); fUpdateStats(); fRenderTrash();
   toast(fail?'?? '+done+' deleted, '+fail+' failed':'? '+done+' field'+(done>1?'s':'')+' deleted.',fail?'warning':'success');
 }
-function fOpenRecoverModal(){ var n=F.trashSelIds.size; document.getElementById('modal-rec-text').textContent='Recover '+n+' field'+(n>1?'s':'')+' to GHL?'; document.getElementById('modal-rec-prog-wrap').style.display='none'; document.getElementById('modal-rec-prog-label').style.display='none'; document.getElementById('modal-rec-actions').style.display='flex'; document.getElementById('modal-rec-confirm').onclick=fDoRecover; openModal('modal-rec'); }
+function fOpenRecoverModal(){ var n=F.trashSelIds.size; (document.getElementById('modal-rec-text')||{}).textContent='Recover '+n+' field'+(n>1?'s':'')+' to GHL?'; (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-rec-confirm')||{}).onclick=fDoRecover; openModal('modal-rec'); }
 async function fDoRecover(){
   var k=apiKey(),l=locId(),idxs=[...F.trashSelIds].sort(function(a,b){ return a-b; }),tot=idxs.length;
-  document.getElementById('modal-rec-actions').style.display='none'; document.getElementById('modal-rec-prog-wrap').style.display='block'; document.getElementById('modal-rec-prog-label').style.display='block'; var _el_22=document.getElementById('modal-rec-text'); if(_el_22) _el_22.textContent='Recovering...';
+  (document.getElementById('modal-rec-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='block'; var _el_22=document.getElementById('modal-rec-text'); if(_el_22) _el_22.textContent='Recovering...';
   var done=0,fail=0,ok=[];
   // Types that require options array
   var NEEDS_OPTIONS=['RADIO','CHECKBOX','SINGLE_OPTIONS','MULTIPLE_OPTIONS','DROPDOWN','TEXTBOX_LIST'];
@@ -4767,7 +4745,7 @@ async function fDoRecover(){
       }
       ok.push(idx); done++;
     }catch(err){ console.error('[Recover error]',err.message); fail++; }
-    document.getElementById('modal-rec-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-rec-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
     var _el_32=document.getElementById('modal-rec-prog-label'); if(_el_32) _el_32.textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,300); });
   }
@@ -4830,12 +4808,12 @@ function dUpdateTrashUI(){
   if(b) b.disabled=!n;
   if(c){ c.checked=D.trash.length>0&&n===D.trash.length; c.indeterminate=n>0&&n<D.trash.length; }
 }
-function dOpenRecoverModal(){ var n=D.trashSelIds.size; var _el_30=document.getElementById('modal-rec-text'); if(_el_30) _el_30.textContent='Recover '+n+' folder'+(n>1?'s':'')+' (empty)?'; document.getElementById('modal-rec-prog-wrap').style.display='none'; document.getElementById('modal-rec-prog-label').style.display='none'; document.getElementById('modal-rec-actions').style.display='flex'; document.getElementById('modal-rec-confirm').onclick=dDoRecover; openModal('modal-rec'); }
+function dOpenRecoverModal(){ var n=D.trashSelIds.size; var _el_30=document.getElementById('modal-rec-text'); if(_el_30) _el_30.textContent='Recover '+n+' folder'+(n>1?'s':'')+' (empty)?'; (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-rec-confirm')||{}).onclick=dDoRecover; openModal('modal-rec'); }
 async function dDoRecover(){
   var k=apiKey(),l=locId(),idxs=[...D.trashSelIds].sort(function(a,b){ return a-b; }),tot=idxs.length;
-  document.getElementById('modal-rec-actions').style.display='none'; document.getElementById('modal-rec-prog-wrap').style.display='block'; document.getElementById('modal-rec-prog-label').style.display='block'; var _el_31=document.getElementById('modal-rec-text'); if(_el_31) _el_31.textContent='Recovering...';
+  (document.getElementById('modal-rec-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='block'; var _el_31=document.getElementById('modal-rec-text'); if(_el_31) _el_31.textContent='Recovering...';
   var done=0,fail=0,ok=[];
-  for(var i=0;i<idxs.length;i++){ var idx=idxs[i],it=D.trash[idx]; if(!it){ fail++; continue; } try{ var r=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customFields/folders',{method:'POST',headers:gH(),body:JSON.stringify({name:it.folder.name})}); if(!r.ok) throw new Error(); ok.push(idx); done++; }catch(e){ fail++; } document.getElementById('modal-rec-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_42=document.getElementById('modal-rec-prog-label'); if(_el_42) _el_42.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
+  for(var i=0;i<idxs.length;i++){ var idx=idxs[i],it=D.trash[idx]; if(!it){ fail++; continue; } try{ var r=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customFields/folders',{method:'POST',headers:gH(),body:JSON.stringify({name:it.folder.name})}); if(!r.ok) throw new Error(); ok.push(idx); done++; }catch(e){ fail++; } (document.getElementById('modal-rec-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_42=document.getElementById('modal-rec-prog-label'); if(_el_42) _el_42.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
   ok.sort(function(a,b){ return b-a; }).forEach(function(i){ D.trash.splice(i,1); }); D.recovered+=done; saveTrash(D_TRASH_KEY,D.trash); D.trashSelIds.clear(); closeModal('modal-rec'); dRenderTrash(); dUpdateStats(); await loadFolders();
   toast(fail?'?? '+done+' recovered, '+fail+' failed':'?? '+done+' folder'+(done>1?'s':'')+' recovered.',fail?'warning':'success');
 }
@@ -4901,12 +4879,12 @@ async function vDoDelete(){
   saveTrash(V_TRASH_KEY,V.trash); closeModal('modal-del'); V.selIds.clear(); await loadValues(); vUpdateStats(); vRenderTrash();
   toast(fail?'?? '+done+' deleted, '+fail+' failed':'? '+done+' value'+(done>1?'s':'')+' deleted.',fail?'warning':'success');
 }
-function vOpenRecoverModal(){ var n=V.trashSelIds.size; var _el_40=document.getElementById('modal-rec-text'); if(_el_40) _el_40.textContent='Recover '+n+' value'+(n>1?'s':'')+'?'; document.getElementById('modal-rec-prog-wrap').style.display='none'; document.getElementById('modal-rec-prog-label').style.display='none'; document.getElementById('modal-rec-actions').style.display='flex'; document.getElementById('modal-rec-confirm').onclick=vDoRecover; openModal('modal-rec'); }
+function vOpenRecoverModal(){ var n=V.trashSelIds.size; var _el_40=document.getElementById('modal-rec-text'); if(_el_40) _el_40.textContent='Recover '+n+' value'+(n>1?'s':'')+'?'; (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-rec-confirm')||{}).onclick=vDoRecover; openModal('modal-rec'); }
 async function vDoRecover(){
   var k=apiKey(),l=locId(),idxs=[...V.trashSelIds].sort(function(a,b){ return a-b; }),tot=idxs.length;
-  document.getElementById('modal-rec-actions').style.display='none'; document.getElementById('modal-rec-prog-wrap').style.display='block'; document.getElementById('modal-rec-prog-label').style.display='block'; var _el_41=document.getElementById('modal-rec-text'); if(_el_41) _el_41.textContent='Recovering...';
+  (document.getElementById('modal-rec-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='block'; var _el_41=document.getElementById('modal-rec-text'); if(_el_41) _el_41.textContent='Recovering...';
   var done=0,fail=0,ok=[];
-  for(var i=0;i<idxs.length;i++){ var idx=idxs[i],it=V.trash[idx]; if(!it){ fail++; continue; } try{ var r=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues',{method:'POST',headers:gH(),body:JSON.stringify({name:it.value.name,value:it.value.value||''})}); if(!r.ok) throw new Error(); ok.push(idx); done++; }catch(e){ fail++; } document.getElementById('modal-rec-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_51=document.getElementById('modal-rec-prog-label'); if(_el_51) _el_51.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
+  for(var i=0;i<idxs.length;i++){ var idx=idxs[i],it=V.trash[idx]; if(!it){ fail++; continue; } try{ var r=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues',{method:'POST',headers:gH(),body:JSON.stringify({name:it.value.name,value:it.value.value||''})}); if(!r.ok) throw new Error(); ok.push(idx); done++; }catch(e){ fail++; } (document.getElementById('modal-rec-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_51=document.getElementById('modal-rec-prog-label'); if(_el_51) _el_51.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
   ok.sort(function(a,b){ return b-a; }).forEach(function(i){ V.trash.splice(i,1); }); V.recovered+=done; saveTrash(V_TRASH_KEY,V.trash); V.trashSelIds.clear(); closeModal('modal-rec'); vRenderTrash(); vUpdateStats(); await loadValues();
   toast(fail?'?? '+done+' recovered, '+fail+' failed':'?? '+done+' recovered.',fail?'warning':'success');
 }
@@ -4967,12 +4945,12 @@ async function vfDoDelete(){
   saveTrash(VF_TRASH_KEY,VF.trash); closeModal('modal-del'); VF.selIds.clear(); await loadVFolders(); vfUpdateStats(); vfRenderTrash();
   toast(fail?'?? '+done+' deleted, '+fail+' failed':'? '+done+' folder'+(done>1?'s':'')+' deleted.',fail?'warning':'success');
 }
-function vfOpenRecoverModal(){ var n=VF.trashSelIds.size; var _el_49=document.getElementById('modal-rec-text'); if(_el_49) _el_49.textContent='Recover '+n+' value folder'+(n>1?'s':'')+' (empty)?'; document.getElementById('modal-rec-prog-wrap').style.display='none'; document.getElementById('modal-rec-prog-label').style.display='none'; document.getElementById('modal-rec-actions').style.display='flex'; document.getElementById('modal-rec-confirm').onclick=vfDoRecover; openModal('modal-rec'); }
+function vfOpenRecoverModal(){ var n=VF.trashSelIds.size; var _el_49=document.getElementById('modal-rec-text'); if(_el_49) _el_49.textContent='Recover '+n+' value folder'+(n>1?'s':'')+' (empty)?'; (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-rec-confirm')||{}).onclick=vfDoRecover; openModal('modal-rec'); }
 async function vfDoRecover(){
   var k=apiKey(),l=locId(),idxs=[...VF.trashSelIds].sort(function(a,b){ return a-b; }),tot=idxs.length;
-  document.getElementById('modal-rec-actions').style.display='none'; document.getElementById('modal-rec-prog-wrap').style.display='block'; document.getElementById('modal-rec-prog-label').style.display='block'; var _el_50=document.getElementById('modal-rec-text'); if(_el_50) _el_50.textContent='Recovering...';
+  (document.getElementById('modal-rec-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='block'; var _el_50=document.getElementById('modal-rec-text'); if(_el_50) _el_50.textContent='Recovering...';
   var done=0,fail=0,ok=[];
-  for(var i=0;i<idxs.length;i++){ var idx=idxs[i],it=VF.trash[idx]; if(!it){ fail++; continue; } try{ var r=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues/folders',{method:'POST',headers:gH(),body:JSON.stringify({name:it.folder.name})}); if(!r.ok) throw new Error(); ok.push(idx); done++; }catch(e){ fail++; } document.getElementById('modal-rec-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_62=document.getElementById('modal-rec-prog-label'); if(_el_62) _el_62.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
+  for(var i=0;i<idxs.length;i++){ var idx=idxs[i],it=VF.trash[idx]; if(!it){ fail++; continue; } try{ var r=await fetch('https://services.leadconnectorhq.com/locations/'+l+'/customValues/folders',{method:'POST',headers:gH(),body:JSON.stringify({name:it.folder.name})}); if(!r.ok) throw new Error(); ok.push(idx); done++; }catch(e){ fail++; } (document.getElementById('modal-rec-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_62=document.getElementById('modal-rec-prog-label'); if(_el_62) _el_62.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,300); }); }
   ok.sort(function(a,b){ return b-a; }).forEach(function(i){ VF.trash.splice(i,1); }); VF.recovered+=done; saveTrash(VF_TRASH_KEY,VF.trash); VF.trashSelIds.clear(); closeModal('modal-rec'); vfRenderTrash(); vfUpdateStats(); await loadVFolders();
   toast(fail?'?? '+done+' recovered, '+fail+' failed':'?? '+done+' recovered.',fail?'warning':'success');
 }
@@ -5035,12 +5013,12 @@ async function calDoDelete(){
   saveTrash(CAL_TRASH_KEY,CAL.trash); closeModal('modal-del'); CAL.selIds.clear(); await loadCalendars(); calUpdateStats(); calRenderTrash();
   toast(fail?'?? '+done+' deleted, '+fail+' failed':'? '+done+' calendar'+(done>1?'s':'')+' deleted.',fail?'warning':'success');
 }
-function calOpenRec(){ var n=CAL.trashSelIds.size; document.getElementById('modal-rec-text').textContent='Recover '+n+' calendar'+(n>1?'s':'')+'?'; document.getElementById('modal-rec-prog-wrap').style.display='none'; document.getElementById('modal-rec-prog-label').style.display='none'; document.getElementById('modal-rec-actions').style.display='flex'; document.getElementById('modal-rec-confirm').onclick=calDoRecover; openModal('modal-rec'); }
+function calOpenRec(){ var n=CAL.trashSelIds.size; (document.getElementById('modal-rec-text')||{}).textContent='Recover '+n+' calendar'+(n>1?'s':'')+'?'; (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-actions')||{style:{}}).style.display='flex'; (document.getElementById('modal-rec-confirm')||{}).onclick=calDoRecover; openModal('modal-rec'); }
 async function calDoRecover(){
   var k=apiKey(),l=locId(),idxs=[...CAL.trashSelIds].sort(function(a,b){ return a-b; }),tot=idxs.length;
-  document.getElementById('modal-rec-actions').style.display='none'; document.getElementById('modal-rec-prog-wrap').style.display='block'; document.getElementById('modal-rec-prog-label').style.display='block'; var _el_61=document.getElementById('modal-rec-text'); if(_el_61) _el_61.textContent='Recovering...';
+  (document.getElementById('modal-rec-actions')||{style:{}}).style.display='none'; (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='block'; (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='block'; var _el_61=document.getElementById('modal-rec-text'); if(_el_61) _el_61.textContent='Recovering...';
   var done=0,fail=0,ok=[];
-  for(var i=0;i<idxs.length;i++){ var idx=idxs[i],it=CAL.trash[idx]; if(!it){ fail++; continue; } var cal=it.calendar; try{ var slug=(cal.slug||(cal.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')); var body={locationId:l,name:cal.name,description:cal.description||'',calendarType:cal.calendarType||'EVENT_CALENDAR',slug:slug}; if(cal.teamMembers) body.teamMembers=cal.teamMembers; var r=await fetch('https://services.leadconnectorhq.com/calendars/',{method:'POST',headers:{'Authorization':'Bearer '+k,'Content-Type':'application/json','Version':VER},body:JSON.stringify(body)}); if(!r.ok){ var ed=await r.json(); throw new Error(ed.message||'HTTP '+r.status); } ok.push(idx); done++; }catch(e){ console.error('[CalRecover]',e.message); fail++; } document.getElementById('modal-rec-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_134=document.getElementById('modal-rec-prog-label'); if(_el_134) _el_134.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,350); }); }
+  for(var i=0;i<idxs.length;i++){ var idx=idxs[i],it=CAL.trash[idx]; if(!it){ fail++; continue; } var cal=it.calendar; try{ var slug=(cal.slug||(cal.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')); var body={locationId:l,name:cal.name,description:cal.description||'',calendarType:cal.calendarType||'EVENT_CALENDAR',slug:slug}; if(cal.teamMembers) body.teamMembers=cal.teamMembers; var r=await fetch('https://services.leadconnectorhq.com/calendars/',{method:'POST',headers:{'Authorization':'Bearer '+k,'Content-Type':'application/json','Version':VER},body:JSON.stringify(body)}); if(!r.ok){ var ed=await r.json(); throw new Error(ed.message||'HTTP '+r.status); } ok.push(idx); done++; }catch(e){ console.error('[CalRecover]',e.message); fail++; } (document.getElementById('modal-rec-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%'; var _el_134=document.getElementById('modal-rec-prog-label'); if(_el_134) _el_134.textContent=(done+fail)+'/'+tot; await new Promise(function(r){ setTimeout(r,350); }); }
   ok.sort(function(a,b){ return b-a; }).forEach(function(i){ CAL.trash.splice(i,1); }); CAL.recovered+=done; saveTrash(CAL_TRASH_KEY,CAL.trash); CAL.trashSelIds.clear(); closeModal('modal-rec'); calRenderTrash(); calUpdateStats(); await loadCalendars();
   toast(fail?'?? '+done+' recovered, '+fail+' failed':'?? '+done+' calendar'+(done>1?'s':'')+' recovered.',fail?'warning':'success');
 }
@@ -7019,18 +6997,18 @@ function fnUpdateTrashUI(){
 function fnOpenRec(){
   var n=FN.trashSelIds.size;
   var _el_132=document.getElementById('modal-rec-text'); if(_el_132) _el_132.textContent='Recover '+n+' funnel'+(n>1?'s':'')+'? They will be recreated in GHL.';
-  document.getElementById('modal-rec-prog-wrap').style.display='none';
-  document.getElementById('modal-rec-prog-label').style.display='none';
-  document.getElementById('modal-rec-actions').style.display='flex';
-  document.getElementById('modal-rec-confirm').onclick=fnDoRecover;
+  (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='none';
+  (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='none';
+  (document.getElementById('modal-rec-actions')||{style:{}}).style.display='flex';
+  (document.getElementById('modal-rec-confirm')||{}).onclick=fnDoRecover;
   openModal('modal-rec');
 }
 
 async function fnDoRecover(){
   var k=apiKey(), l=locId(), idxs=[...FN.trashSelIds].sort(function(a,b){ return a-b; }), tot=idxs.length;
-  document.getElementById('modal-rec-actions').style.display='none';
-  document.getElementById('modal-rec-prog-wrap').style.display='block';
-  document.getElementById('modal-rec-prog-label').style.display='block';
+  (document.getElementById('modal-rec-actions')||{style:{}}).style.display='none';
+  (document.getElementById('modal-rec-prog-wrap')||{style:{}}).style.display='block';
+  (document.getElementById('modal-rec-prog-label')||{style:{}}).style.display='block';
   var _el_133=document.getElementById('modal-rec-text'); if(_el_133) _el_133.textContent='Recovering '+tot+' funnel'+(tot>1?'s':'')+'...';
   var done=0, fail=0, ok=[];
   var h={'Authorization':'Bearer '+k,'Content-Type':'application/json','Version':'2021-07-28'};
@@ -7043,8 +7021,8 @@ async function fnDoRecover(){
       if(!r.ok) throw new Error('HTTP '+r.status);
       ok.push(idxs[i]); done++;
     }catch(err){ console.error('[FNRecover]',err.message); fail++; }
-    document.getElementById('modal-rec-prog-bar').style.width=Math.round(((done+fail)/tot)*100)+'%';
-    document.getElementById('modal-rec-prog-label').textContent=(done+fail)+'/'+tot;
+    (document.getElementById('modal-rec-prog-bar')||{style:{}}).style.width=Math.round(((done+fail)/tot)*100)+'%';
+    (document.getElementById('modal-rec-prog-label')||{}).textContent=(done+fail)+'/'+tot;
     await new Promise(function(r){ setTimeout(r,300); });
   }
   ok.sort(function(a,b){ return b-a; }).forEach(function(i){ FN.trash.splice(i,1); });
@@ -7256,27 +7234,6 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 </script>
 </body>
 </html>
