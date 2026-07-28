@@ -3158,6 +3158,8 @@
 
 
 
+
+
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 
@@ -3278,7 +3280,7 @@ var BRAND = {
 };
 
 function openBrandCategoryTool(){
-  showScreen('screen-brand-category');
+  toast('Brand & Design is coming soon! Stay tuned.','info');
 }
 
 function openBrandThemeTool(){
@@ -3796,6 +3798,8 @@ function renderConnectTools(){
     var m=toolMeta[tid]; if(!m) return;
     var unlocked=assigned.indexOf(tid)>-1;
     var rgb=hexToRgb(m.color);
+    // Brand & Design is coming soon - always locked
+    if(tid === 'brand') unlocked = false;
     if(unlocked){
       html+='<div class="cat-card tool-card-unlocked" style="border:1px solid rgba('+rgb+',0.4);background:var(--surface);cursor:pointer;position:relative;" onclick="'+m.open+'">'
         +'<div class="cat-card-top">'
@@ -3811,7 +3815,9 @@ function renderConnectTools(){
       html+='<div class="cat-card tool-card-locked" style="border:1px solid rgba(107,112,148,0.2);background:rgba(15,15,25,0.6);cursor:not-allowed;position:relative;opacity:0.55;" title="Not assigned">'
         +'<div class="cat-card-top">'
         +'<div class="cat-card-icon" style="background:rgba(107,112,148,0.08);border:1px solid rgba(107,112,148,0.2);font-size:22px;filter:grayscale(1);">'+m.icon+'</div>'
-        +'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;color:#6b7094;background:rgba(107,112,148,0.1);border:1px solid rgba(107,112,148,0.2);">&#128274; LOCKED</span>'
+        +(tid==='brand'
+        ? '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;color:#ec4899;background:rgba(236,72,153,0.1);border:1px solid rgba(236,72,153,0.3);">&#127775; Coming Soon</span>'
+        : '<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;color:#6b7094;background:rgba(107,112,148,0.1);border:1px solid rgba(107,112,148,0.2);">&#128274; LOCKED</span>')
         +'</div>'
         +'<div class="cat-card-title" style="color:#4a4a6a;font-size:14px;margin:10px 0 6px;">'+m.label+'</div>'
         +'<div class="cat-card-footer">'
@@ -4415,7 +4421,7 @@ function isConnReady(){
   return {ok:true};
 }
 function openCategory(cat){
-  if(cat==='brand'){openBrandCategoryTool();return;}
+  if(cat==='brand'){ toast('Brand & Design is coming soon!','info'); return; }
   if(agencyAccounts.length && selectedAccount.id){
     var acct=agencyAccounts.find(function(a){ return a.id===selectedAccount.id; });
     if(acct&&acct.locationKey){
@@ -7290,6 +7296,8 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
+
 
 
 
