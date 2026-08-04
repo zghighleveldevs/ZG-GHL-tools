@@ -2076,7 +2076,7 @@
 ════════════════════════ -->
 <div id="screen-calendars" class="screen tool-screen">
   <nav class="topnav">
-    <button class="back-btn" onclick="showScreen('screen-cal-category');renderAllSwitchers()"><span class="back-btn-arrow">←</span> Back</button>
+    <button class="back-btn" onclick="goCategory()"><span class="back-btn-arrow">←</span> Back</button>
     <div class="topnav-title">
       <div class="topnav-dot" style="background:#06b6d4;box-shadow:0 0 6px #06b6d4;"></div>
       Calendars Manager
@@ -2162,7 +2162,7 @@
 ════════════════════════ -->
 <div id="screen-appointments" class="screen tool-screen">
   <nav class="topnav">
-    <button class="back-btn" onclick="showScreen('screen-cal-category');renderAllSwitchers()"><span class="back-btn-arrow">←</span> Back</button>
+    <button class="back-btn" onclick="goCategory()"><span class="back-btn-arrow">←</span> Back</button>
     <div class="topnav-title">
       <div class="topnav-dot" style="background:#6366f1;box-shadow:0 0 6px #6366f1;"></div>
       Appointments Manager
@@ -2389,7 +2389,7 @@
 ════════════════════════ -->
 <div id="screen-invoices" class="screen tool-screen">
   <nav class="topnav">
-    <button class="back-btn" onclick="showScreen('screen-pay-category');renderAllSwitchers()"><span class="back-btn-arrow">←</span> Back</button>
+    <button class="back-btn" onclick="goCategory()"><span class="back-btn-arrow">←</span> Back</button>
     <div class="topnav-title">
       <div class="topnav-dot" style="background:#10b981;box-shadow:0 0 6px #10b981;"></div>
       Invoices Manager
@@ -2472,7 +2472,7 @@
 ════════════════════════ -->
 <div id="screen-documents" class="screen tool-screen">
   <nav class="topnav">
-    <button class="back-btn" onclick="showScreen('screen-pay-category');renderAllSwitchers()"><span class="back-btn-arrow">&#8592;</span> Back</button>
+    <button class="back-btn" onclick="goCategory()"><span class="back-btn-arrow">&#8592;</span> Back</button>
     <div class="topnav-title">
       <div class="topnav-dot" style="background:#8b5cf6;box-shadow:0 0 6px #8b5cf6;"></div>
       Documents &amp; Contracts
@@ -2549,7 +2549,7 @@
 ════════════════════════ -->
 <div id="screen-orders" class="screen tool-screen">
   <nav class="topnav">
-    <button class="back-btn" onclick="showScreen('screen-pay-category');renderAllSwitchers()"><span class="back-btn-arrow">&#8592;</span> Back</button>
+    <button class="back-btn" onclick="goCategory()"><span class="back-btn-arrow">&#8592;</span> Back</button>
     <div class="topnav-title">
       <div class="topnav-dot" style="background:#f59e0b;box-shadow:0 0 6px #f59e0b;"></div>
       Orders Manager
@@ -2632,7 +2632,7 @@
 ════════════════════════ -->
 <div id="screen-products" class="screen tool-screen">
   <nav class="topnav">
-    <button class="back-btn" onclick="showScreen('screen-pay-category');renderAllSwitchers()"><span class="back-btn-arrow">&#8592;</span> Back</button>
+    <button class="back-btn" onclick="goCategory()"><span class="back-btn-arrow">&#8592;</span> Back</button>
     <div class="topnav-title">
       <div class="topnav-dot" style="background:#ec4899;box-shadow:0 0 6px #ec4899;"></div>
       Products Manager
@@ -2765,7 +2765,7 @@
 ════════════════════════ -->
 <div id="screen-tags" class="screen tool-screen">
   <nav class="topnav">
-    <button class="back-btn" onclick="showScreen('screen-mkt-category');renderAllSwitchers()"><span class="back-btn-arrow">&#8592;</span> Back</button>
+    <button class="back-btn" onclick="goCategory()"><span class="back-btn-arrow">&#8592;</span> Back</button>
     <div class="topnav-title"><div class="topnav-dot" style="background:#a855f7;box-shadow:0 0 6px #a855f7;"></div>Tags Manager</div>
     <div class="topnav-spacer"></div>
     <div class="acct-switcher-wrap" id="acct-switcher-tags">
@@ -2819,7 +2819,7 @@
 ════════════════════════ -->
 <div id="screen-workflows" class="screen tool-screen">
   <nav class="topnav">
-    <button class="back-btn" onclick="showScreen('screen-mkt-category');renderAllSwitchers()"><span class="back-btn-arrow">&#8592;</span> Back</button>
+    <button class="back-btn" onclick="goCategory()"><span class="back-btn-arrow">&#8592;</span> Back</button>
     <div class="topnav-title"><div class="topnav-dot" style="background:#a855f7;box-shadow:0 0 6px #a855f7;"></div>Workflows</div>
     <div class="topnav-spacer"></div>
     <div class="acct-switcher-wrap" id="acct-switcher-workflows">
@@ -2885,7 +2885,7 @@
 ════════════════════════ -->
 <div id="screen-email-templ" class="screen tool-screen">
   <nav class="topnav">
-    <button class="back-btn" onclick="showScreen('screen-mkt-category');renderAllSwitchers()"><span class="back-btn-arrow">&#8592;</span> Back</button>
+    <button class="back-btn" onclick="goCategory()"><span class="back-btn-arrow">&#8592;</span> Back</button>
     <div class="topnav-title"><div class="topnav-dot" style="background:#a855f7;box-shadow:0 0 6px #a855f7;"></div>Email Templates</div>
     <div class="topnav-spacer"></div>
     <div class="acct-switcher-wrap" id="acct-switcher-email-templ">
@@ -3155,6 +3155,7 @@
 
 <div id="toast" class="toast"></div>
 <script defer>
+
 
 
 
@@ -4366,12 +4367,14 @@ function goHome(){
 }
 function goCategory(){
   if(PORTAL&&PORTAL.currentUser&&PORTAL.currentUser.role==='client'){
+    // In client mode: always go back to tools grid
     showScreen('screen-client-connect');
     var sec=document.getElementById('connect-tools-section');
     if(sec) sec.style.display='block';
+    refreshClientToolsAndRender(null);
     return;
   }
-  // For mkt tools (email, tags, workflows) go back to mkt-category
+  // Admin/agency mode: go to appropriate category screen
   var cur=document.querySelector('.screen.active');
   var curId=cur?cur.id:'';
   if(['screen-email-templ','screen-tags','screen-workflows'].indexOf(curId)>-1){
@@ -7313,6 +7316,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
 
 
 
