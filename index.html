@@ -3160,6 +3160,7 @@
 
 
 
+
 function dbConfigLoad(){}
 function dbConfigSave(k,b){DB_CONFIG.masterKey=k;DB_CONFIG.binId=b;}
 
@@ -6554,24 +6555,40 @@ async function loadWorkflows(){
   }catch(err){ tbl.innerHTML='<div class="state-box"><div class="icon">?</div><p>'+esc(err.message)+'</p><div class="error-box">Key: '+esc(k.slice(0,18))+'...<br>Loc: '+esc(l)+'</div></div>'; toast('Failed: '+err.message,'error'); }
 }
 
+function wfNormStatus(w){
+  // Normalize GHL workflow status to 'active' or 'inactive'
+  var st=(w.status||w.workflowStatus||'').toLowerCase();
+  if(st==='active'||st==='published'||w.isActive===true) return 'active';
+  return 'inactive';
+}
+
 function wfApplyFilter(){
-  var st=document.getElementById('wf-status-select').value.toLowerCase();
+  var st=document.getElementById('wf-status-select')?document.getElementById('wf-status-select').value.toLowerCase():'';
   var q=WF.searchQ.toLowerCase();
   WF.filtered=WF.all.filter(function(w){
-    var wst=(w.status||w.workflowStatus||'').toLowerCase();
-    var matchS=!st||wst===st||(st==='active'&&w.isActive===true)||(st==='inactive'&&w.isActive===false);
+    var norm=wfNormStatus(w);
+    var matchS=!st||norm===st;
     var matchQ=!q||(w.name||'').toLowerCase().includes(q);
     return matchS&&matchQ;
   });
-  wfRender(); wfUpdateStats(); var _el_112=document.getElementById('wf-search-count'); if(_el_112) _el_112.textContent=WF.filtered.length+' of '+WF.all.length;
+  wfRender();
+  wfUpdateStats();
+  var sc=document.getElementById('wf-search-count');
+  if(sc) sc.textContent=WF.filtered.length+' of '+WF.all.length;
 }
 function wfSearch(v){ WF.searchQ=v.trim(); document.getElementById('wf-clear-search').style.display=v?'block':'none'; wfApplyFilter(); }
 function wfClearSearch(){ document.getElementById('wf-search').value=''; WF.searchQ=''; document.getElementById('wf-clear-search').style.display='none'; wfApplyFilter(); }
 function wfUpdateStats(){
-  document.getElementById('wf-s-total').textContent=WF.all.length;
-  var _el_113=document.getElementById('wf-s-showing'); if(_el_113) _el_113.textContent=WF.filtered.length;
-  var _el_114=document.getElementById('wf-s-active'); if(_el_114) _el_114.textContent=WF.all.filter(function(w){ return w.status==='active'||w.isActive===true; }).length;
-  var _el_115=document.getElementById('wf-s-inactive'); if(_el_115) _el_115.textContent=WF.all.filter(function(w){ return w.status==='inactive'||w.status==='draft'||w.isActive===false; }).length;
+  var el_total=document.getElementById('wf-s-total');
+  var el_show=document.getElementById('wf-s-showing');
+  var el_act=document.getElementById('wf-s-active');
+  var el_inact=document.getElementById('wf-s-inactive');
+  var activeCount=WF.all.filter(function(w){ return wfNormStatus(w)==='active'; }).length;
+  var inactiveCount=WF.all.length-activeCount;
+  if(el_total) el_total.textContent=WF.all.length;
+  if(el_show) el_show.textContent=WF.filtered.length;
+  if(el_act) el_act.textContent=activeCount;
+  if(el_inact) el_inact.textContent=inactiveCount;
 }
 function wfFmtDate(ds){ if(!ds) return '\u2014'; var d=new Date(ds); return isNaN(d.getTime())?esc(String(ds)):d.toLocaleDateString(); }
 function wfRender(){
@@ -6588,9 +6605,9 @@ function wfRender(){
   WF.filtered.forEach(function(w){
     var id=w._id||w.id||'';
     var name=esc(w.name||'Unnamed');
-    var st=(w.status||w.workflowStatus||(w.isActive?'active':'inactive')||'').toLowerCase();
-    var stCls={active:'pay-paid',inactive:'pay-draft',draft:'mkt-draft',published:'pay-paid'}[st]||'pay-draft';
-    var stPill='<span class="pay-status-pill '+stCls+'">'+esc(st)+'</span>';
+    var st=wfNormStatus(w);
+    var stCls=st==='active'?'pay-paid':'pay-draft';
+    var stPill='<span class="pay-status-pill '+stCls+'">'+st+'</span>';
     var checked=WF.selIds.has(id)?'checked':'';
     rows+='<div class="table-row" style="'+cols+';cursor:default;" data-wf-id="'+esc(id)+'">'
       +'<div><input type="checkbox" '+checked+' data-wid="'+esc(id)+'" onchange="wfToggleSel(this)" style="accent-color:#a855f7;cursor:pointer;width:15px;height:15px;"/></div>'
@@ -7296,6 +7313,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
 
 
 
