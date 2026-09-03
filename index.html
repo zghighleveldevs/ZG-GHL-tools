@@ -3093,6 +3093,76 @@
 </div>
 
 
+
+<div id="screen-conversations" class="screen tool-screen">
+  <nav class="topnav">
+    <button class="back-btn" onclick="goCategory()"><span class="back-btn-arrow">&#8592;</span> Back</button>
+    <div class="topnav-title">
+      <div class="topnav-dot" style="background:#3b82f6;box-shadow:0 0 6px #3b82f6;"></div>
+      Conversations Export
+    </div>
+    <div class="topnav-spacer"></div>
+    <div id="acct-btn-conversations" class="acct-switcher-btn" onclick="toggleAcctDropdown('conversations')">
+      <span class="acct-name" id="acct-name-conversations">Select Account</span>&#9660;
+      <div class="acct-dropdown" id="acct-dropdown-conversations"></div>
+    </div>
+  </nav>
+
+  <div class="tool-content">
+    <!-- Stats -->
+    <div id="conv-stats" class="stats-row" style="display:none;">
+      <div class="stat-card"><div class="stat-num" id="conv-s-total">0</div><div class="stat-label">TOTAL</div></div>
+      <div class="stat-card"><div class="stat-num" id="conv-s-showing">0</div><div class="stat-label">SHOWING</div></div>
+      <div class="stat-card" style="border-color:rgba(59,130,246,0.3);"><div class="stat-num" id="conv-s-selected" style="color:#3b82f6;">0</div><div class="stat-label">SELECTED</div></div>
+    </div>
+
+    <!-- Always visible load button -->
+    <div id="conv-load-bar" style="margin-bottom:16px;display:flex;gap:10px;align-items:center;">
+      <button class="btn" style="background:#3b82f6;color:#fff;font-weight:700;padding:12px 28px;font-size:15px;" onclick="loadConversations()">
+        &#8659; Load Conversations
+      </button>
+      <span style="font-size:13px;color:var(--text-muted);">Fetch all conversations from GHL</span>
+    </div>
+
+    <!-- Toolbar -->
+    <div id="conv-toolbar" class="toolbar" style="display:none;">
+      <div class="toolbar-left">
+        <button class="btn" style="background:#3b82f6;color:#fff;font-weight:700;padding:8px 18px;" onclick="loadConversations()">&#8659; Load Conversations</button>
+        <div id="conv-bulk-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span id="conv-bulk-count" style="font-size:13px;font-weight:600;color:var(--text-muted);">0 selected</span>
+          <button class="btn" style="background:#10b981;color:#fff;font-weight:700;padding:7px 14px;font-size:12px;" onclick="convExportSelected()">&#8681; Export Selected</button>
+          <button class="btn" style="background:#6c63ff;color:#fff;font-weight:700;padding:7px 14px;font-size:12px;" onclick="convExportAll()">&#8681; Export All</button>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <input id="conv-search" type="text" placeholder="&#128269; Search contacts..." class="search-input"
+          oninput="convSearch(this.value)" style="min-width:240px;"/>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div id="conv-table" class="table-wrap"></div>
+
+    <!-- Progress bar -->
+    <div id="conv-progress" style="display:none;margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span id="conv-progress-text" style="font-size:13px;font-weight:600;color:var(--text);">Exporting...</span>
+        <span style="font-size:12px;color:var(--text-muted);">Do not close this tab</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;height:8px;overflow:hidden;">
+        <div id="conv-progress-bar" style="height:100%;background:linear-gradient(90deg,#3b82f6,#6c63ff);border-radius:6px;width:0%;transition:width 0.3s;"></div>
+      </div>
+    </div>
+
+    <!-- Bottom export bar -->
+    <div id="conv-bottom-bar" style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button class="btn" style="background:#10b981;color:#fff;font-weight:700;padding:10px 20px;" onclick="convExportSelected()">&#8681; Export Selected</button>
+      <button class="btn" style="background:#6c63ff;color:#fff;font-weight:700;padding:10px 20px;" onclick="convExportAll()">&#8681; Export All Conversations</button>
+      <span id="conv-export-info" style="font-size:13px;color:var(--text-muted);">Select conversations or export all at once</span>
+    </div>
+  </div>
+</div>
+
 <!-- MODALS -->
 
 <div class="modal-overlay" id="modal-rec">
@@ -3155,6 +3225,331 @@
 
 <div id="toast" class="toast"></div>
 <script defer>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================================
+// CONVERSATIONS EXPORT TOOL
+// ============================================
+
+var CONV = {
+  all: [], filtered: [], selected: new Set(),
+  loading: false, exporting: false
+};
+
+function openConversationsTool(){
+  var chk=isConnReady(); if(!chk.ok){ toast(chk.msg,'warning'); return; }
+  showScreen('screen-conversations');
+  renderAllSwitchers();
+  CONV.all=[]; CONV.filtered=[]; CONV.selected=new Set();
+  var tbl=document.getElementById('conv-table');
+  if(tbl) tbl.innerHTML='<div class="state-box"><div class="icon">&#128172;</div><p>Click <strong>Load Conversations</strong> to fetch from GHL.</p></div>';
+  convUpdateStats(); convUpdateBulkBar();
+}
+
+async function loadConversations(){
+  if(CONV.loading){ toast('Already loading...','warning'); return; }
+  var k=apiKey(), l=locId();
+  var tbl=document.getElementById('conv-table');
+  var toolbar=document.getElementById('conv-toolbar');
+  var stats=document.getElementById('conv-stats');
+  var loadBar=document.getElementById('conv-load-bar');
+  if(toolbar) toolbar.style.display='none';
+  if(stats) stats.style.display='none';
+  CONV.loading=true;
+  CONV.all=[]; CONV.filtered=[]; CONV.selected=new Set();
+  var loadBtn=document.getElementById('conv-load-btn');
+  if(loadBtn){ loadBtn.disabled=true; loadBtn.textContent='Loading...'; }
+
+  try{
+    var all=[];
+    var limit=100;
+    var startAfterDate=null; // GHL cursor: sort value of last document
+    var totalFromAPI=null;
+
+    while(true){
+      // GHL conversations/search uses startAfterDate for cursor pagination
+      var url='https://services.leadconnectorhq.com/conversations/search?locationId='+encodeURIComponent(l)+'&limit='+limit+'&sortBy=last_message_date&sort=desc';
+      if(startAfterDate) url+='&startAfterDate='+encodeURIComponent(startAfterDate);
+
+      var r=await fetch(url,{headers:{'Authorization':'Bearer '+k,'Version':'2021-07-28'}});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var d=await r.json();
+      var convs=d.conversations||[];
+      if(!convs.length) break;
+
+      // Get total on first page
+      if(totalFromAPI===null && d.total) totalFromAPI=d.total;
+
+      all=all.concat(convs);
+
+      if(tbl) tbl.innerHTML='<div class="state-box"><div class="spinner" style="border-top-color:#3b82f6"></div><p>Loading... <strong>'+all.length+'</strong>'+(totalFromAPI?' of '+totalFromAPI:'')+' conversations</p></div>';
+
+      // Last page check
+      if(convs.length<limit) break;
+      if(totalFromAPI && all.length>=totalFromAPI) break;
+
+      // Set cursor to last conversation's dateUpdated (GHL sort value)
+      var lastConv=convs[convs.length-1];
+      var nextCursor=lastConv.dateUpdated||lastConv.lastMessageDate||lastConv.dateAdded||null;
+      if(!nextCursor||nextCursor===startAfterDate) break;
+      startAfterDate=nextCursor;
+    }
+
+    CONV.all=all;
+    CONV.filtered=all.slice();
+    if(toolbar) toolbar.style.display='flex';
+    if(stats) stats.style.display='flex';
+    if(loadBar) loadBar.style.display='none';
+    convUpdateStats(); convRender();
+    toast(all.length+' conversations loaded.','success');
+  }catch(err){
+    if(tbl) tbl.innerHTML='<div class="state-box"><div class="icon">&#10060;</div><p>'+esc(err.message)+'</p></div>';
+    toast('Failed: '+err.message,'error');
+  }
+  CONV.loading=false;
+  if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='&#8659; Reload'; }
+}
+
+function convSearch(q){
+  q=q||'';
+  CONV.filtered=CONV.all.filter(function(c){
+    var name=(c.contactName||c.fullName||(c.contact&&c.contact.name)||'').toLowerCase();
+    var email=(c.email||(c.contact&&c.contact.email)||'').toLowerCase();
+    var phone=(c.phone||(c.contact&&c.contact.phone)||'').toLowerCase();
+    return !q||name.includes(q.toLowerCase())||email.includes(q.toLowerCase())||phone.includes(q.toLowerCase());
+  });
+  convRender(); convUpdateStats();
+}
+
+function convRender(){
+  var tbl=document.getElementById('conv-table');
+  if(!tbl) return;
+  if(!CONV.filtered.length){
+    tbl.innerHTML='<div class="state-box"><div class="icon">&#128172;</div><p>No conversations found.</p></div>';
+    return;
+  }
+  var allSel=CONV.filtered.length>0&&CONV.filtered.every(function(c){return CONV.selected.has(c.id||c._id);});
+  var h='<div class="table-head" style="grid-template-columns:36px 1fr 180px 120px;">'
+    +'<div><input type="checkbox" '+(allSel?'checked':'')
+    +' onchange="convToggleAll(this.checked)" style="accent-color:#3b82f6;cursor:pointer;width:15px;height:15px;"/></div>'
+    +'<div>Contact</div><div>Last Message</div><div>Date</div>'
+    +'</div>';
+  CONV.filtered.forEach(function(c){
+    var id=c.id||c._id||'';
+    var name=esc(c.contactName||c.fullName||(c.contact&&c.contact.name)||'Unknown');
+    var email=esc(c.email||(c.contact&&c.contact.email)||'');
+    var lastMsg=esc((c.lastMessageBody||c.lastMessage||'').slice(0,50));
+    var date=c.dateUpdated||c.lastMessageDate||c.updatedAt||'';
+    var dateStr=date?new Date(date).toLocaleDateString():'—';
+    var chk=CONV.selected.has(id)?'checked':'';
+    h+='<div class="table-row" style="grid-template-columns:36px 1fr 180px 120px;">'
+      +'<div><input type="checkbox" '+chk+' data-cid="'+esc(id)+'" onchange="convToggleSel(this)" style="accent-color:#3b82f6;cursor:pointer;width:15px;height:15px;"/></div>'
+      +'<div><div class="item-name">'+name+'</div><div class="item-id">'+email+'</div></div>'
+      +'<div class="item-id" style="font-size:11px;">'+lastMsg+'</div>'
+      +'<div class="item-id">'+dateStr+'</div>'
+      +'</div>';
+  });
+  tbl.innerHTML=h;
+  convUpdateBulkBar();
+}
+
+function convToggleSel(cb){
+  var id=cb.getAttribute('data-cid');
+  if(cb.checked) CONV.selected.add(id); else CONV.selected.delete(id);
+  convUpdateBulkBar(); convUpdateStats();
+}
+
+function convToggleAll(checked){
+  CONV.filtered.forEach(function(c){ var id=c.id||c._id; if(id){if(checked)CONV.selected.add(id);else CONV.selected.delete(id);} });
+  convRender(); convUpdateStats();
+}
+
+function convUpdateBulkBar(){
+  var cnt=document.getElementById('conv-bulk-count');
+  var info=document.getElementById('conv-export-info');
+  var n=CONV.selected.size;
+  if(cnt) cnt.textContent=n+' selected';
+  if(info) info.textContent=n>0?n+' conversation(s) ready to export':'Select conversations or click Export All';
+}
+
+function convUpdateStats(){
+  var el_t=document.getElementById('conv-s-total');
+  var el_s=document.getElementById('conv-s-showing');
+  var el_sel=document.getElementById('conv-s-selected');
+  if(el_t) el_t.textContent=CONV.all.length;
+  if(el_s) el_s.textContent=CONV.filtered.length;
+  if(el_sel) el_sel.textContent=CONV.selected.size;
+}
+
+async function fetchMessagesForConv(cid, k){
+  var msgs=[];
+  var lastMsgId=null;
+  var maxPages=50;
+  var headers={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
+
+  for(var p=0;p<maxPages;p++){
+    var url='https://services.leadconnectorhq.com/conversations/'+cid+'/messages?limit=100';
+    if(lastMsgId) url+='&lastMessageId='+encodeURIComponent(lastMsgId);
+
+    var r=await fetch(url,{headers:headers});
+    if(!r.ok) break;
+    var d=await r.json();
+
+    var batch=[];
+    if(Array.isArray(d.messages)) batch=d.messages;
+    else if(d.messages&&Array.isArray(d.messages.messages)) batch=d.messages.messages;
+    else if(Array.isArray(d)) batch=d;
+
+    if(!batch.length) break;
+
+    // For each message with empty body, try to get the full message
+    for(var i=0;i<batch.length;i++){
+      var msg=batch[i];
+      var hasBody=!!(msg.body||msg.text||msg.emailBody||msg.html||msg.messageBody);
+      if(!hasBody && msg.id){
+        try{
+          var mr=await fetch('https://services.leadconnectorhq.com/conversations/messages/'+msg.id,{headers:headers});
+          if(mr.ok){
+            var md=await mr.json();
+            var full=md.message||md;
+            // Merge fields from full message
+            if(full.body) msg.body=full.body;
+            if(full.html) msg.html=full.html;
+            if(full.emailBody) msg.emailBody=full.emailBody;
+            if(full.subject) msg.subject=full.subject;
+            if(full.text) msg.text=full.text;
+          }
+        }catch(fe){}
+      }
+    }
+
+    msgs=msgs.concat(batch);
+    if(!d.nextPage||!d.lastMessageId||d.lastMessageId===lastMsgId) break;
+    lastMsgId=d.lastMessageId;
+  }
+  return msgs;
+}
+
+async function convExportSelected(){
+  var ids=Array.from(CONV.selected);
+  if(!ids.length){ toast('Select at least one conversation.','warning'); return; }
+  await convDoExport(ids, 'conversations_selected_'+new Date().toISOString().slice(0,10)+'.csv');
+}
+
+async function convExportAll(){
+  if(!CONV.all.length){ toast('Load conversations first.','warning'); return; }
+  var ids=CONV.all.map(function(c){return c.id||c._id;}).filter(Boolean);
+  await convDoExport(ids, 'conversations_all_'+new Date().toISOString().slice(0,10)+'.csv');
+}
+
+async function convDoExport(ids, filename){
+  if(CONV.exporting){ toast('Export already in progress...','warning'); return; }
+  CONV.exporting=true;
+  var k=apiKey();
+  var progressEl=document.getElementById('conv-progress');
+  var progressBar=document.getElementById('conv-progress-bar');
+  var progressText=document.getElementById('conv-progress-text');
+
+  if(progressEl) progressEl.style.display='block';
+
+  var rows=[['Contact Name','Email','Phone','Conversation ID','Message Date','Direction','Channel','Subject','Message']];
+  var total=ids.length;
+  var done=0;
+  var errors=0;
+
+  for(var i=0;i<ids.length;i++){
+    var cid=ids[i];
+    var conv=CONV.all.find(function(c){return (c.id||c._id)===cid;});
+    var name=conv?conv.contactName||conv.fullName||(conv.contact&&conv.contact.name)||'Unknown':'Unknown';
+    var email=conv?conv.email||(conv.contact&&conv.contact.email)||'':'';
+    var phone=conv?conv.phone||(conv.contact&&conv.contact.phone)||'':'';
+
+    // Update progress
+    done=i+1;
+    var pct=Math.round((done/total)*100);
+    if(progressBar) progressBar.style.width=pct+'%';
+    if(progressText) progressText.textContent='Exporting '+done+' of '+total+' conversations ('+pct+'%)...';
+
+    try{
+      var msgs=await fetchMessagesForConv(cid, k);
+      if(msgs.length){
+        // Sort messages chronologically (oldest first)
+      msgs.sort(function(a,b){
+        var da=new Date(a.dateAdded||a.createdAt||a.date||0).getTime();
+        var db=new Date(b.dateAdded||b.createdAt||b.date||0).getTime();
+        return da-db;
+      });
+
+      msgs.forEach(function(msg){
+          var rawBody=msg.body||msg.emailBody||msg.text||msg.html||msg.messageBody||'';
+          var subject=msg.subject||msg.emailSubject||'';
+          // Strip HTML
+          var body=rawBody.toString()
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi,'')
+            .replace(/<[^>]+>/g,' ')
+            .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&')
+            .replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+            .replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+            .replace(/[\x0a\x0d\t]+/g,' ').replace(/  +/g,' ').trim();
+          if(!body && subject) body='[Subject: '+subject+']';
+          if(!body) body='['+ch+']';
+
+
+          var dir=msg.direction||'';
+          if(dir===1||dir==='1') dir='inbound';
+          if(dir===2||dir==='2') dir='outbound';
+          var ch=msg.messageType||msg.type||msg.contentType||msg.channel||'';
+          var date=msg.dateAdded||msg.createdAt||msg.date||'';
+          var dateStr=date?new Date(date).toLocaleString():'';
+          rows.push([name,email,phone,cid,dateStr,dir,ch,subject,body]);
+        });
+      } else {
+        // No messages but include contact row
+        rows.push([name,email,phone,cid,'','','','(no messages)']);
+      }
+    }catch(e){
+      errors++;
+      rows.push([name,email,phone,cid,'','','','Error: '+e.message]);
+    }
+  }
+
+  // Build and download CSV
+  var csv=rows.map(function(row){
+    return row.map(function(cell){
+      var s=String(cell||'');
+      return (s.indexOf(',')>-1||s.indexOf('"')>-1)?'"'+s+'"':s;
+    }).join(',');
+  }).join('\n');
+
+  var bom='\uFEFF'; // UTF-8 BOM for Excel
+  var blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+
+  if(progressEl) progressEl.style.display='none';
+  CONV.exporting=false;
+
+  var msg=total+' conversation(s) exported'+(errors?' ('+errors+' errors)':'')+'!';
+  toast(msg,'success');
+}
+
+
 
 
 
@@ -3791,9 +4186,10 @@ function renderConnectTools(){
     'tags':      {label:'Tags',              icon:'&#127991;', color:'#a855f7', open:'openTool(\x27tags\x27)'},
     'workflows': {label:'Workflows',         icon:'&#9889;',   color:'#a855f7', open:'openTool(\x27workflows\x27)'},
     'brand':     {label:'Brand & Design',    icon:'&#127912;', color:'#ec4899', open:'openBrandCategoryTool()'},
+    'conversations': {label:'Conversations Export', icon:'&#128172;', color:'#3b82f6', open:'openConversationsTool()'},
   };
 
-  var order=['fields','folders','values','vfolders','calendars','appointments','invoices','documents','orders','products','email-templ','tags','workflows','brand'];
+  var order=['fields','folders','values','vfolders','calendars','appointments','invoices','documents','orders','products','email-templ','tags','workflows','brand','conversations'];
   var html='';
 
   order.forEach(function(tid){
@@ -3865,6 +4261,7 @@ var ALL_TOOLS = [
   {id:'tags',label:'Tags',icon:'&#127991;',color:'#a855f7'},
   {id:'workflows',label:'Workflows',icon:'&#9889;',color:'#a855f7'},
   {id:'brand',label:'Brand & Design',icon:'&#127912;',color:'#ec4899'},
+  {id:'conversations',label:'Conversations Export',icon:'&#128172;',color:'#3b82f6'},
 ];
 
 function agencyShowTab(tab){
@@ -4300,7 +4697,7 @@ let agencyCompanyId = '';
 let agencyAccounts = [];
 let selectedAccount = {id:'', name:''};
 let locationTokenCache = {};
-const SWITCHER_SCREENS = ['login','agency-portal','client-home','client-connect','brand-category','brand-theme','brand-logo','cat','fields','folders','values','vfolders','calendars','cal-category','appointments','pay-category','invoices','documents','orders','paylinks'];
+const SWITCHER_SCREENS = ['login','agency-portal','client-home','client-connect','brand-category','brand-theme','brand-logo','conversations','cat','fields','folders','values','vfolders','calendars','cal-category','appointments','pay-category','invoices','documents','orders','paylinks'];
 
 // == UTILS ==
 function apiKey(){
@@ -7316,6 +7713,22 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
