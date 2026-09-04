@@ -3241,6 +3241,11 @@
 
 
 
+
+
+
+
+
 // ============================================
 // CONVERSATIONS EXPORT TOOL
 // ============================================
@@ -3274,39 +3279,74 @@ async function loadConversations(){
   var loadBtn=document.getElementById('conv-load-btn');
   if(loadBtn){ loadBtn.disabled=true; loadBtn.textContent='Loading...'; }
 
+  var all=[];
+  var seenIds=new Set();
+  var headers={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
+  var totalFromAPI=null;
+
   try{
-    var all=[];
-    var limit=100;
-    var startAfterDate=null; // GHL cursor: sort value of last document
-    var totalFromAPI=null;
+    // GHL paginates conversations using startAfterDate (ISO string of last item's sort field)
+    // Sort DESC so newest first, cursor moves into older conversations
+    var startAfterDate=null;
+    var noNewCount=0;
 
     while(true){
-      // GHL conversations/search uses startAfterDate for cursor pagination
-      var url='https://services.leadconnectorhq.com/conversations/search?locationId='+encodeURIComponent(l)+'&limit='+limit+'&sortBy=last_message_date&sort=desc';
+      var url='https://services.leadconnectorhq.com/conversations/search'
+        +'?locationId='+encodeURIComponent(l)
+        +'&limit=100'
+        +'&sortBy=last_message_date'
+        +'&sort=desc';
       if(startAfterDate) url+='&startAfterDate='+encodeURIComponent(startAfterDate);
 
-      var r=await fetch(url,{headers:{'Authorization':'Bearer '+k,'Version':'2021-07-28'}});
-      if(!r.ok) throw new Error('HTTP '+r.status);
+      var r=await fetch(url,{headers:headers});
+      if(!r.ok) throw new Error('HTTP '+r.status+' '+await r.text());
       var d=await r.json();
       var convs=d.conversations||[];
+
+      if(totalFromAPI===null){
+        totalFromAPI=d.total||d.meta&&d.meta.total||null;
+      }
+
+      var added=0;
+      convs.forEach(function(c){
+        var id=c.id||c._id||'';
+        if(id&&!seenIds.has(id)){
+          seenIds.add(id);
+          all.push(c);
+          added++;
+        }
+      });
+
+      // Update UI
+      if(tbl) tbl.innerHTML='<div class="state-box"><div class="spinner" style="border-top-color:#3b82f6"></div>'
+        +'<p>Loading... <strong>'+all.length+'</strong>'+(totalFromAPI?' of <strong>'+totalFromAPI+'</strong>':'')+' conversations</p></div>';
+
+      // Stop: empty page
       if(!convs.length) break;
 
-      // Get total on first page
-      if(totalFromAPI===null && d.total) totalFromAPI=d.total;
+      // Stop: reached known total
+      if(totalFromAPI&&all.length>=totalFromAPI) break;
 
-      all=all.concat(convs);
+      // Stop: no new items added (all dupes - cursor stuck)
+      if(added===0){ noNewCount++; if(noNewCount>=2) break; }
+      else noNewCount=0;
 
-      if(tbl) tbl.innerHTML='<div class="state-box"><div class="spinner" style="border-top-color:#3b82f6"></div><p>Loading... <strong>'+all.length+'</strong>'+(totalFromAPI?' of '+totalFromAPI:'')+' conversations</p></div>';
+      // Stop: fewer than 100 = last page
+      if(convs.length<100) break;
 
-      // Last page check
-      if(convs.length<limit) break;
-      if(totalFromAPI && all.length>=totalFromAPI) break;
+      // Advance cursor: use the LAST conversation's lastMessageDate
+      // This is the sort field GHL uses
+      var lastC=convs[convs.length-1];
+      var cur=lastC.lastMessageDate||lastC.dateUpdated||lastC.dateAdded||null;
+      if(!cur) break;
 
-      // Set cursor to last conversation's dateUpdated (GHL sort value)
-      var lastConv=convs[convs.length-1];
-      var nextCursor=lastConv.dateUpdated||lastConv.lastMessageDate||lastConv.dateAdded||null;
-      if(!nextCursor||nextCursor===startAfterDate) break;
-      startAfterDate=nextCursor;
+      // If cursor same as before, subtract 1ms to force progress
+      if(cur===startAfterDate){
+        var ms=new Date(cur).getTime();
+        if(isNaN(ms)) break;
+        cur=new Date(ms-1).toISOString();
+      }
+      startAfterDate=cur;
     }
 
     CONV.all=all;
@@ -3315,7 +3355,9 @@ async function loadConversations(){
     if(stats) stats.style.display='flex';
     if(loadBar) loadBar.style.display='none';
     convUpdateStats(); convRender();
-    toast(all.length+' conversations loaded.','success');
+    var msg=all.length+' conversations loaded';
+    if(totalFromAPI&&all.length<totalFromAPI) msg+=' (GHL total: '+totalFromAPI+')';
+    toast(msg,'success');
   }catch(err){
     if(tbl) tbl.innerHTML='<div class="state-box"><div class="icon">&#10060;</div><p>'+esc(err.message)+'</p></div>';
     toast('Failed: '+err.message,'error');
@@ -3323,7 +3365,6 @@ async function loadConversations(){
   CONV.loading=false;
   if(loadBtn){ loadBtn.disabled=false; loadBtn.textContent='&#8659; Reload'; }
 }
-
 function convSearch(q){
   q=q||'';
   CONV.filtered=CONV.all.filter(function(c){
@@ -3396,52 +3437,92 @@ function convUpdateStats(){
 }
 
 async function fetchMessagesForConv(cid, k){
-  var msgs=[];
+  // GHL /conversations/{id}/messages returns newest first
+  // Paginate using lastMessageId cursor until no nextPage
+  // Then reverse to get chronological order
+
+  var allMsgs=[];
+  var seenIds=new Set();
   var lastMsgId=null;
-  var maxPages=50;
   var headers={'Authorization':'Bearer '+k,'Version':'2021-07-28'};
 
-  for(var p=0;p<maxPages;p++){
+  for(var page=0; page<200; page++){  // 200 pages x 100 = 20,000 messages max
     var url='https://services.leadconnectorhq.com/conversations/'+cid+'/messages?limit=100';
     if(lastMsgId) url+='&lastMessageId='+encodeURIComponent(lastMsgId);
 
     var r=await fetch(url,{headers:headers});
     if(!r.ok) break;
-    var d=await r.json();
+    var raw=await r.text();
+    var d;
+    try{ d=JSON.parse(raw); }catch(e){ break; }
 
+    // Extract message array - GHL wraps differently depending on version
     var batch=[];
     if(Array.isArray(d.messages)) batch=d.messages;
     else if(d.messages&&Array.isArray(d.messages.messages)) batch=d.messages.messages;
+    else if(d.messages&&typeof d.messages==='object'){
+      Object.values(d.messages).forEach(function(v){
+        if(Array.isArray(v)&&v.length&&v[0].id) batch=batch.concat(v);
+      });
+    }
     else if(Array.isArray(d)) batch=d;
 
     if(!batch.length) break;
 
-    // For each message with empty body, try to get the full message
-    for(var i=0;i<batch.length;i++){
-      var msg=batch[i];
-      var hasBody=!!(msg.body||msg.text||msg.emailBody||msg.html||msg.messageBody);
-      if(!hasBody && msg.id){
+    // Dedup
+    var newBatch=[];
+    batch.forEach(function(m){
+      var mid=m.id||m._id||'';
+      if(mid&&!seenIds.has(mid)){
+        seenIds.add(mid);
+        newBatch.push(m);
+      }
+    });
+
+    if(!newBatch.length) break; // All dupes = done
+
+    // Fetch full body for messages with empty body (email threads etc)
+    for(var i=0;i<newBatch.length;i++){
+      var msg=newBatch[i];
+      var body=msg.body||msg.text||msg.emailBody||msg.html||msg.messageBody||'';
+      if(!body&&msg.id){
         try{
           var mr=await fetch('https://services.leadconnectorhq.com/conversations/messages/'+msg.id,{headers:headers});
           if(mr.ok){
             var md=await mr.json();
             var full=md.message||md;
-            // Merge fields from full message
-            if(full.body) msg.body=full.body;
-            if(full.html) msg.html=full.html;
-            if(full.emailBody) msg.emailBody=full.emailBody;
-            if(full.subject) msg.subject=full.subject;
-            if(full.text) msg.text=full.text;
+            msg.body=full.body||msg.body||'';
+            msg.html=full.html||msg.html||'';
+            msg.emailBody=full.emailBody||msg.emailBody||'';
+            msg.subject=full.subject||msg.subject||'';
+            msg.text=full.text||msg.text||'';
           }
-        }catch(fe){}
+        }catch(e){}
       }
     }
 
-    msgs=msgs.concat(batch);
-    if(!d.nextPage||!d.lastMessageId||d.lastMessageId===lastMsgId) break;
-    lastMsgId=d.lastMessageId;
+    allMsgs=allMsgs.concat(newBatch);
+
+    // Get next page cursor
+    var nextId=d.lastMessageId
+      ||(d.messages&&d.messages.lastMessageId)
+      ||null;
+    var hasNext=d.nextPage
+      ||(d.messages&&d.messages.nextPage)
+      ||false;
+
+    if(!hasNext||!nextId||nextId===lastMsgId) break;
+    lastMsgId=nextId;
   }
-  return msgs;
+
+  // Sort chronologically: oldest first
+  allMsgs.sort(function(a,b){
+    var ta=new Date(a.dateAdded||a.createdAt||a.date||0).getTime();
+    var tb=new Date(b.dateAdded||b.createdAt||b.date||0).getTime();
+    return ta-tb;
+  });
+
+  return allMsgs;
 }
 
 async function convExportSelected(){
@@ -3487,14 +3568,7 @@ async function convDoExport(ids, filename){
     try{
       var msgs=await fetchMessagesForConv(cid, k);
       if(msgs.length){
-        // Sort messages chronologically (oldest first)
-      msgs.sort(function(a,b){
-        var da=new Date(a.dateAdded||a.createdAt||a.date||0).getTime();
-        var db=new Date(b.dateAdded||b.createdAt||b.date||0).getTime();
-        return da-db;
-      });
-
-      msgs.forEach(function(msg){
+        msgs.forEach(function(msg){
           var rawBody=msg.body||msg.emailBody||msg.text||msg.html||msg.messageBody||'';
           var subject=msg.subject||msg.emailSubject||'';
           // Strip HTML
@@ -7713,6 +7787,11 @@ document.addEventListener('DOMContentLoaded', function() {
   renderAllSwitchers();
   if(!portalRestoreSession()){showScreen('screen-login');}
 });
+
+
+
+
+
 
 
 
